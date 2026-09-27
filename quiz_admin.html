@@ -1,0 +1,2272 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🛡️ لوحة المشرف الشاملة — كويز · امتحان · صفوف</title>
+<script>
+/* تطبيق الوضع الليلي/النهاري المحفوظ قبل رسم الصفحة (عشان ما يحصلش وميض) */
+(function(){
+  var t='dark';
+  try{ var s=JSON.parse(localStorage.getItem('quizAdmin.settings.v1')||'{}'); t=s.theme||'dark'; }catch(e){}
+  if(t==='auto') t=(window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
+  document.documentElement.setAttribute('data-theme',t);
+})();
+</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#0e1621;--surface:#162032;--card:#1c2d3f;--border:#2a3f55;
+  --green:#58cc02;--green-d:#3d8f00;--blue:#1cb0f6;--blue-d:#0e7ab8;
+  --red:#ff4b4b;--red-d:#b83232;--yellow:#ffc800;--purple:#9b59b6;
+  --purple-d:#6b3a8a;--orange:#ff9600;--orange-d:#c47000;
+  --text:#e8f0f7;--muted:#7a9aac;--radius:14px;
+}
+body{font-family:var(--font),'Cairo','Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:0;}
+
+/* ── LOGIN ── */
+#loginScreen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;}
+.login-card{background:var(--surface);border:1.5px solid var(--border);border-radius:20px;padding:40px 32px;width:100%;max-width:400px;text-align:center;box-shadow:0 12px 40px var(--shadow);}
+.login-icon{font-size:3.5rem;margin-bottom:16px;filter:drop-shadow(0 0 16px rgba(88,204,2,.4));}
+.login-card h1{font-size:1.6rem;font-weight:900;margin-bottom:6px;}
+.login-card p{color:var(--muted);font-size:.9rem;margin-bottom:28px;}
+.field{width:100%;background:var(--card);border:2px solid var(--border);border-radius:12px;color:var(--text);font-family:inherit;font-size:1rem;font-weight:700;padding:14px 16px;text-align:center;margin-bottom:12px;transition:border-color .2s;}
+.field:focus{outline:none;border-color:var(--blue);}
+.field-row{display:flex;gap:10px;margin-bottom:12px;}
+.field-row .field{margin-bottom:0;}
+
+/* ── LAYOUT ── */
+#adminScreen{display:none;flex-direction:column;min-height:100vh;}
+.topbar{background:var(--surface);border-bottom:1.5px solid var(--border);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:100;}
+.topbar-left{display:flex;align-items:center;gap:12px;}
+.logo{font-size:1.3rem;font-weight:900;}
+.logo span{color:var(--green);}
+.room-badge{background:var(--card);border:1.5px solid var(--border);border-radius:8px;padding:6px 14px;font-size:.85rem;font-weight:700;color:var(--muted);}
+.room-badge b{color:var(--yellow-text);letter-spacing:2px;}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 1.4s infinite;margin-left:6px;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.topbar-right{display:flex;gap:8px;align-items:center;}
+
+/* ── STATS BAR ── */
+.stats-bar{display:flex;gap:12px;padding:16px 20px;flex-wrap:wrap;}
+.stat-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px 20px;flex:1;min-width:120px;text-align:center;}
+.stat-num{font-size:2rem;font-weight:900;line-height:1;}
+.stat-lbl{font-size:.72rem;color:var(--muted);font-weight:700;margin-top:4px;text-transform:uppercase;letter-spacing:.5px;}
+.stat-num.green{color:var(--green);}
+.stat-num.blue{color:var(--blue);}
+.stat-num.yellow{color:var(--yellow-text);}
+.stat-num.red{color:var(--red);}
+
+/* ── MAIN GRID ── */
+.main{display:grid;grid-template-columns:1fr 320px;gap:16px;padding:0 20px 20px;align-items:start;}
+@media(max-width:768px){.main{grid-template-columns:1fr;}}
+
+/* ── PLAYER TABLE ── */
+.panel{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.panel-head{padding:14px 18px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.panel-title{font-size:.82rem;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+.search-box{background:var(--card);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:.85rem;padding:7px 12px;width:180px;}
+.search-box:focus{outline:none;border-color:var(--blue);}
+
+.player-list{max-height:var(--list-max);overflow-y:auto;}
+.player-row{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid var(--border);transition:background .15s;}
+.player-row:last-child{border-bottom:none;}
+.player-row:hover{background:var(--hover);}
+.p-rank{width:24px;height:24px;border-radius:50%;font-size:.72rem;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.r1{background:#ffc800;color:#131f24;}.r2{background:#adb5bd;color:#131f24;}.r3{background:#cd7f32;color:#fff;}.rN{background:var(--border);color:var(--muted);}
+.p-av{width:34px;height:34px;border-radius:50%;font-size:.78rem;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.p-info{flex:1;min-width:0;}
+.p-name{font-size:.9rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.p-meta{font-size:.72rem;color:var(--muted);margin-top:1px;}
+.p-xp{font-size:.85rem;color:var(--yellow-text);font-weight:900;min-width:60px;text-align:center;}
+.p-actions{display:flex;gap:5px;flex-shrink:0;}
+
+/* ── BUTTONS ── */
+.btn{border:none;border-radius:9px;font-family:inherit;font-weight:800;cursor:pointer;transition:transform .1s,opacity .15s,box-shadow .1s;display:inline-flex;align-items:center;justify-content:center;gap:6px;}
+.btn:hover{opacity:.88;transform:translateY(-1px);}
+.btn:active{transform:translateY(1px);}
+.btn:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+.btn-sm{font-size:.75rem;padding:6px 10px;}
+.btn-md{font-size:.9rem;padding:10px 18px;}
+.btn-lg{font-size:1rem;padding:13px 22px;width:100%;}
+.btn-green{background:var(--green);color:#0e1621;box-shadow:0 3px 0 var(--green-d);}
+.btn-blue{background:var(--blue);color:#0e1621;box-shadow:0 3px 0 var(--blue-d);}
+.btn-red{background:var(--red);color:#fff;box-shadow:0 3px 0 var(--red-d);}
+.btn-yellow{background:var(--yellow);color:#0e1621;box-shadow:0 3px 0 #b08a00;}
+.btn-purple{background:var(--purple);color:#fff;box-shadow:0 3px 0 var(--purple-d);}
+.btn-orange{background:var(--orange);color:#0e1621;box-shadow:0 3px 0 var(--orange-d);}
+.btn-ghost{background:var(--card);color:var(--text);border:1.5px solid var(--border);}
+.btn-danger-outline{background:transparent;color:var(--red);border:1.5px solid var(--red);}
+
+/* ── SIDEBAR ── */
+.sidebar{display:flex;flex-direction:column;gap:14px;}
+.action-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:14px;}
+.action-grid .btn-lg{font-size:.82rem;padding:11px 8px;}
+.divider{height:1px;background:var(--border);margin:4px 0;}
+.gift-section{padding:14px;}
+.gift-section label{font-size:.78rem;color:var(--muted);font-weight:700;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;}
+.gift-presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.preset-btn{background:var(--card);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:.8rem;font-weight:700;padding:6px 10px;cursor:pointer;transition:border-color .15s;}
+.preset-btn:hover{border-color:var(--yellow);}
+.preset-btn.active{border-color:var(--yellow);background:rgba(255,200,0,.12);color:var(--yellow-text);}
+.gift-input-row{display:flex;gap:8px;}
+.gift-input{flex:1;background:var(--card);border:1.5px solid var(--border);border-radius:9px;color:var(--text);font-family:inherit;font-size:.95rem;font-weight:700;padding:10px 12px;text-align:center;}
+.gift-input:focus{outline:none;border-color:var(--yellow);}
+
+/* ── LOCK BANNER ── */
+#lockBanner{display:none;background:linear-gradient(135deg,#7c1616,#b83232);border-bottom:2px solid var(--red);padding:12px 20px;text-align:center;font-weight:900;font-size:.95rem;letter-spacing:.5px;}
+
+/* ── KICK CONFIRM ── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;padding:20px;}
+.overlay.show{display:flex;}
+.dialog{background:var(--surface);border:1.5px solid var(--border);border-radius:18px;padding:28px 24px;max-width:340px;width:100%;text-align:center;}
+.dialog h3{font-size:1.2rem;font-weight:900;margin-bottom:8px;}
+.dialog p{color:var(--muted);font-size:.88rem;margin-bottom:20px;line-height:1.5;}
+.dialog-btns{display:flex;gap:10px;}
+.dialog-btns .btn{flex:1;}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--card);border:1.5px solid var(--border);border-radius:50px;padding:11px 24px;font-size:.88rem;font-weight:700;z-index:300;transition:transform .3s,opacity .3s;white-space:nowrap;box-shadow:0 4px 20px var(--shadow);opacity:0;visibility:hidden;pointer-events:none;}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1;visibility:visible;pointer-events:auto;}
+
+/* ── EMPTY STATE ── */
+.empty{text-align:center;padding:48px 20px;color:var(--muted);}
+.empty .e-icon{font-size:2.5rem;margin-bottom:12px;}
+.empty p{font-size:.88rem;}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px;}
+
+/* ── BAN LIST ── */
+.ban-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);}
+.ban-row:last-child{border-bottom:none;}
+.ban-name{flex:1;font-size:.85rem;font-weight:700;color:var(--red);}
+.ban-time{font-size:.72rem;color:var(--muted);}
+.ban-unban{background:transparent;border:1.5px solid var(--border);border-radius:8px;color:var(--muted);font-family:inherit;font-size:.72rem;font-weight:700;padding:4px 8px;cursor:pointer;transition:border-color .15s;}
+.ban-unban:hover{border-color:var(--green);color:var(--green);}
+
+/* ══ HUB MOTION STYLE ══ */
+:root{
+  --hub-ease:cubic-bezier(.22,.61,.36,1);
+  --hub-ease-soft:cubic-bezier(.4,0,.2,1);
+  --hub-fast:.18s;--hub-mid:.32s;--hub-slow:.6s;
+}
+html{scroll-behavior:smooth;}
+*,*::before,*::after{
+  transition:background-color var(--hub-mid) var(--hub-ease-soft),
+             border-color var(--hub-mid) var(--hub-ease-soft),
+             color var(--hub-fast) var(--hub-ease-soft),
+             box-shadow var(--hub-mid) var(--hub-ease-soft),
+             opacity var(--hub-mid) var(--hub-ease-soft),
+             transform var(--hub-mid) var(--hub-ease);
+}
+body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+body>*{animation:hubFadeUp var(--hub-slow) var(--hub-ease) both;}
+body>*:nth-child(1){animation-delay:.02s}
+body>*:nth-child(2){animation-delay:.08s}
+body>*:nth-child(3){animation-delay:.14s}
+body>*:nth-child(4){animation-delay:.2s}
+body>*:nth-child(n+5){animation-delay:.26s}
+@keyframes hubFadeUp{from{opacity:0;transform:translate3d(0,18px,0) scale(.985);filter:blur(6px)}
+ to{opacity:1;transform:none;filter:blur(0)}}
+button,.btn,a.btn,[role="button"],input[type="submit"]{
+  will-change:transform;transform:translateZ(0);
+}
+button:hover,.btn:hover,a.btn:hover,[role="button"]:hover{transform:translateY(-2px) scale(1.02);}
+button:active,.btn:active,a.btn:active,[role="button"]:active{transform:translateY(1px) scale(.97);transition-duration:.08s;}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{
+  outline:2px solid currentColor;outline-offset:3px;border-radius:8px;
+}
+a{text-decoration-thickness:from-font;text-underline-offset:3px;}
+.card,.panel,.box,section>article{will-change:transform;}
+.card:hover,.panel:hover{transform:translateY(-4px);box-shadow:0 18px 40px -18px rgba(0,0,0,.55);}
+img,svg,video{transform:translateZ(0);backface-visibility:hidden;}
+img:hover{transform:scale(1.015);}
+input,textarea,select{transition:border-color var(--hub-fast) var(--hub-ease-soft),box-shadow var(--hub-fast) var(--hub-ease-soft),transform var(--hub-fast) var(--hub-ease);}
+input:focus,textarea:focus,select:focus{transform:translateY(-1px);}
+dialog,[role="dialog"],.modal{animation:hubPop var(--hub-mid) var(--hub-ease) both;}
+@keyframes hubPop{from{opacity:0;transform:scale(.94) translateY(10px)}to{opacity:1;transform:none}}
+::selection{background:rgba(120,180,255,.28);}
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}
+
+/* ══════════════════════════════════════════════
+   TABS
+   ══════════════════════════════════════════════ */
+.tabbar{display:flex;gap:8px;padding:12px 20px 0;flex-wrap:wrap;}
+.tab-btn{background:var(--card);color:var(--muted);border:1.5px solid var(--border);}
+.tab-btn.active{background:var(--blue);color:#0e1621;border-color:var(--blue);box-shadow:0 3px 0 var(--blue-d);}
+.stat-num.purple{color:var(--purple);}
+
+/* ══════════════════════════════════════════════
+   EXAM ADMIN (نفس نظام لوحة الامتحان - بثيم الكويز)
+   ══════════════════════════════════════════════ */
+.ex-mode{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.ex-mode .t{font-size:.92rem;font-weight:900;}
+.ex-mode .d{font-size:.76rem;color:var(--muted);font-weight:700;margin-top:2px;}
+.ex-sw{width:58px;height:32px;border-radius:50px;background:var(--border);position:relative;cursor:pointer;flex:none;}
+.ex-sw:after{content:"";position:absolute;top:3px;right:3px;width:26px;height:26px;border-radius:50%;background:var(--muted);}
+.ex-sw.on{background:linear-gradient(135deg,var(--green),var(--green-d));}
+.ex-sw.on:after{right:calc(100% - 29px);background:#fff;}
+
+.ex-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(var(--ex-card-min),1fr));padding:14px;}
+.ex-card{background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:12px;}
+.ex-card.live{border-color:var(--green);}
+.ex-card.done{border-color:var(--purple);}
+.ex-card.ban{opacity:.5;}
+.ex-top{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.ex-num{background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:2px 9px;font-size:.75rem;font-weight:900;color:var(--blue);flex:none;}
+.ex-nm{font-size:.88rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
+.ex-badge{font-size:.64rem;font-weight:900;padding:3px 9px;border-radius:50px;border:1.5px solid var(--border);color:var(--muted);white-space:nowrap;flex:none;}
+.ex-badge.on{color:var(--green);border-color:var(--green);background:rgba(88,204,2,.1);}
+.ex-badge.fin{color:var(--purple);border-color:var(--purple);background:rgba(155,89,182,.12);}
+.ex-badge.bn{color:var(--red);border-color:var(--red);background:rgba(255,75,75,.1);}
+.ex-bar{height:6px;border-radius:50px;background:var(--surface);overflow:hidden;margin:8px 0 6px;}
+.ex-bar i{display:block;height:100%;border-radius:50px;background:linear-gradient(90deg,var(--blue),var(--purple));}
+.ex-meta{font-size:.7rem;color:var(--muted);font-weight:700;display:flex;justify-content:space-between;gap:8px;}
+.ex-acts{display:grid;gap:6px;margin-top:8px;padding-top:10px;border-top:1px dashed var(--border);}
+.ex-opts{margin-top:10px;}
+.ex-opts>summary{display:flex;align-items:center;justify-content:center;gap:6px;user-select:none;}
+.ex-opts>summary::-webkit-details-marker{display:none;}
+.ex-opts[open]>summary{background:var(--surface);border-color:var(--text);}
+.ex-opts>summary::after{content:'▾';font-size:.7rem;color:var(--muted);transition:transform .2s;}
+.ex-opts[open]>summary::after{transform:rotate(180deg);}
+.ex-line{display:flex;gap:5px;flex-wrap:wrap;align-items:center;}
+.ex-line .lbl{font-size:.62rem;font-weight:900;color:var(--muted);background:var(--surface);border:1.5px solid var(--border);border-radius:6px;padding:3px 7px;min-width:46px;text-align:center;flex:none;}
+.btn-xs{font-size:.68rem!important;font-weight:800;padding:5px 8px!important;border-radius:8px!important;box-shadow:none!important;}
+.ex-flag{font-size:.66rem;font-weight:900;color:var(--yellow-text);margin-top:4px;}
+
+.exam-review-box{max-width:820px;max-height:86vh;overflow-y:auto;text-align:right;}
+.ex-scb{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+.ex-scb div{flex:1;min-width:100px;background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:10px;text-align:center;}
+.ex-scb b{display:block;font-size:1.2rem;font-weight:900;}
+.ex-scb span{font-size:.66rem;color:var(--muted);font-weight:700;}
+.ex-qb{background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px;}
+.ex-qh{display:flex;gap:9px;align-items:flex-start;margin-bottom:9px;}
+.ex-qn{background:var(--card);border:1.5px solid var(--border);border-radius:8px;padding:2px 9px;font-size:.7rem;font-weight:900;color:var(--blue);flex:none;}
+.ex-qt{font-size:.84rem;font-weight:700;line-height:1.6;direction:ltr;text-align:left;flex:1;}
+.ex-op{border:1.5px solid var(--border);border-radius:10px;padding:8px 12px;font-size:.8rem;font-weight:700;margin-bottom:6px;direction:ltr;text-align:left;display:flex;gap:9px;align-items:center;}
+.ex-op.c{border-color:var(--green);background:rgba(88,204,2,.1);}
+.ex-op.w{border-color:var(--red);background:rgba(255,75,75,.1);}
+.ex-op .mk{font-size:.64rem;font-weight:900;padding:2px 8px;border-radius:50px;margin-inline-start:auto;direction:rtl;}
+.ex-op.c .mk{background:rgba(88,204,2,.2);color:var(--green);}
+.ex-op.w .mk{background:rgba(255,75,75,.2);color:var(--red);}
+.ex-exp{margin-top:8px;background:rgba(28,176,246,.08);border:1.5px dashed var(--blue);border-radius:10px;padding:9px 12px;font-size:.78rem;font-weight:700;line-height:1.7;color:var(--text);direction:ltr;text-align:left;}
+.ex-exp b{color:var(--blue);display:block;font-size:.66rem;direction:rtl;text-align:right;margin-bottom:3px;}
+.ex-exp.none{opacity:.55;border-color:var(--border);}
+
+/* ══ CLASSES & EXAM FILES ══ */
+.cls-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));padding:14px;}
+.cls-card{background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;transition:border-color .15s,transform .15s;position:relative;}
+.cls-card:hover{border-color:var(--blue);transform:translateY(-2px);}
+.cls-card.sel{border-color:var(--green);background:rgba(88,204,2,.06);}
+.cls-num{display:inline-block;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:2px 10px;font-size:.78rem;font-weight:900;color:var(--yellow-text);margin-bottom:6px;}
+.cls-name{font-size:.95rem;font-weight:900;}
+.cls-meta{font-size:.7rem;color:var(--muted);font-weight:700;margin-top:4px;}
+.cls-del{position:absolute;top:8px;left:8px;background:transparent;border:1.5px solid var(--border);color:var(--muted);border-radius:8px;font-family:inherit;font-size:.7rem;font-weight:800;padding:3px 7px;cursor:pointer;}
+.cls-del:hover{border-color:var(--red);color:var(--red);}
+.crumb{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);font-weight:700;padding:0 20px 8px;}
+.crumb b{color:var(--text);}
+.crumb .sep{opacity:.5;}
+.st-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);}
+.st-row:last-child{border-bottom:none;}
+.st-row .n{background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:2px 9px;font-size:.75rem;font-weight:900;color:var(--blue);min-width:44px;text-align:center;}
+.st-row .nm{flex:1;font-size:.88rem;font-weight:700;}
+.st-row .uid{font-size:.62rem;color:var(--muted);font-weight:700;direction:ltr;}
+.st-row .dup{font-size:.62rem;font-weight:900;color:var(--orange);border:1.5px solid var(--orange);border-radius:50px;padding:2px 8px;}
+textarea.field{text-align:right;min-height:110px;resize:vertical;line-height:1.7;font-weight:600;font-size:.88rem;}
+.hard-row{display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-bottom:1px solid var(--border);}
+.hard-row:last-child{border-bottom:none;}
+.hard-rank{width:26px;height:26px;border-radius:50%;background:var(--red);color:#fff;font-size:.75rem;font-weight:900;display:flex;align-items:center;justify-content:center;flex:none;}
+.hard-q{flex:1;font-size:.82rem;font-weight:700;direction:ltr;text-align:left;line-height:1.6;}
+.hard-pct{font-size:1rem;font-weight:900;color:var(--red);min-width:60px;text-align:center;}
+.hard-pct small{display:block;font-size:.62rem;color:var(--muted);font-weight:700;}
+.ex-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:0 20px 12px;}
+.ex-toolbar select{background:var(--card);border:1.5px solid var(--border);border-radius:9px;color:var(--text);font-family:inherit;font-size:.85rem;font-weight:700;padding:8px 12px;min-width:220px;}
+.ex-cls{font-size:.62rem;font-weight:900;color:var(--yellow-text);background:rgba(255,200,0,.08);border:1.5px solid rgba(255,200,0,.35);border-radius:50px;padding:2px 8px;white-space:nowrap;flex:none;}
+
+/* ══════════════════════════════════════════════
+   THEMES (ليلي / نهاري) + SETTINGS
+   ══════════════════════════════════════════════ */
+:root{
+  --font:'Cairo';--hover:rgba(255,255,255,.03);--shadow:rgba(0,0,0,.4);
+  --yellow-text:var(--yellow);--ex-card-min:250px;--list-max:520px;
+}
+html[data-theme="dark"]{color-scheme:dark;}
+html[data-theme="light"]{
+  color-scheme:light;
+  --bg:#eef2f7;--surface:#ffffff;--card:#f4f7fb;--border:#d3dde8;
+  --green:#3fa600;--green-d:#2d7a00;--blue:#0a8fd1;--blue-d:#07679a;
+  --red:#e03a3a;--red-d:#a82828;--yellow:#e0aa00;--purple:#8e44ad;
+  --purple-d:#653080;--orange:#ea8500;--orange-d:#b36500;
+  --text:#152230;--muted:#5d7387;
+  --hover:rgba(0,0,0,.035);--shadow:rgba(20,40,60,.16);--yellow-text:#9a7300;
+}
+html[data-theme="light"] .overlay{background:rgba(20,34,48,.45);}
+html[data-theme="light"] ::selection{background:rgba(10,143,209,.22);}
+
+/* خيارات العرض من الإعدادات */
+html.compact .stats-bar{padding:10px 14px;gap:8px;}
+html.compact .stat-card{padding:8px 12px;}
+html.compact .stat-num{font-size:1.5rem;}
+html.compact .player-row{padding:8px 14px;}
+html.compact .panel-head{padding:9px 14px;}
+html.compact .ex-grid,html.compact .cls-grid{padding:10px;gap:8px;}
+html.compact .ex-card,html.compact .cls-card{padding:9px;}
+html.compact .main{padding:0 14px 14px;gap:12px;}
+html.compact .gift-section,html.compact .action-grid{padding:10px;}
+html.no-anim *,html.no-anim *::before,html.no-anim *::after{animation:none!important;transition:none!important;}
+html.no-lift .card:hover,html.no-lift .panel:hover,html.no-lift .cls-card:hover{transform:none;box-shadow:none;}
+html.no-sticky .topbar{position:static;}
+html.toast-top #toast{top:24px;bottom:auto;transform:translateX(-50%) translateY(-80px);}
+html.toast-top #toast.show{transform:translateX(-50%) translateY(0);}
+
+/* أزرار الوضع والإعدادات في شاشة الدخول */
+.float-tools{position:fixed;top:14px;left:14px;display:flex;gap:8px;z-index:150;}
+
+/* نافذة الإعدادات */
+.set-box{max-width:660px;max-height:88vh;overflow-y:auto;text-align:right;padding:22px;}
+.set-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.set-head h3{flex:1;margin:0;}
+.set-sec{margin-bottom:14px;background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:10px 14px;}
+.set-sec h4{font-size:.82rem;font-weight:900;color:var(--muted);margin:2px 0 6px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.set-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px dashed var(--border);flex-wrap:wrap;}
+.set-row:last-child{border-bottom:none;}
+.set-row .sl{font-size:.86rem;font-weight:700;}
+.set-row .sd{font-size:.68rem;color:var(--muted);font-weight:700;margin-top:1px;}
+.set-row select,.set-row input[type=number]{background:var(--surface);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-weight:700;padding:6px 10px;font-size:.82rem;min-width:120px;}
+.set-row input[type=number]{min-width:0;width:90px;text-align:center;}
+.set-row input[type=range]{width:150px;accent-color:var(--blue);}
+.set-row input[type=color]{width:44px;height:32px;border:1.5px solid var(--border);border-radius:8px;background:none;padding:2px;cursor:pointer;}
+.set-val{font-size:.75rem;font-weight:900;color:var(--blue);min-width:44px;text-align:center;display:inline-block;}
+.set-ctl{display:flex;align-items:center;gap:8px;}
+.seg{display:inline-flex;border:1.5px solid var(--border);border-radius:10px;overflow:hidden;flex-wrap:wrap;}
+.seg button{background:var(--surface);color:var(--muted);border:none;font-family:inherit;font-weight:800;font-size:.78rem;padding:7px 12px;cursor:pointer;}
+.seg button.on{background:var(--blue);color:#0e1621;}
+.set-foot{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+.set-foot .btn{flex:1;min-width:130px;}
+
+/* إظهار/إخفاء الصف أو الملف من لوحة الامتحان العامة */
+.gift-section label.chk,label.chk{display:flex;align-items:center;gap:8px;font-size:.8rem;font-weight:700;color:var(--text);margin:0 0 10px;cursor:pointer;text-transform:none;letter-spacing:0;}
+label.chk input{width:18px;height:18px;accent-color:var(--green);cursor:pointer;}
+.gen-off{display:inline-block;font-size:.62rem;font-weight:900;color:var(--orange);border:1.5px solid var(--orange);border-radius:50px;padding:2px 8px;margin-top:6px;}
+.hidden-note{margin:0 20px 12px;padding:10px 14px;border:1.5px dashed var(--orange);border-radius:12px;font-size:.76rem;font-weight:700;color:var(--muted);background:rgba(255,150,0,.06);}
+.hidden-note b{color:var(--orange);}
+
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<div id="loginScreen">
+  <div class="float-tools">
+    <button class="btn btn-sm btn-ghost theme-btn" onclick="toggleTheme()" title="تبديل الوضع الليلي / النهاري">🌙 ليلي</button>
+    <button class="btn btn-sm btn-ghost" onclick="openSettings()" title="الإعدادات">⚙️</button>
+  </div>
+  <div class="login-card">
+    <div class="login-icon">🛡️</div>
+    <h1>لوحة المشرف</h1>
+    <p>ادخل بيانات الغرفة للمراقبة والتحكم</p>
+    <div class="field-row">
+      <input class="field" id="adminRoom" type="text" placeholder="كود الغرفة" maxlength="8"
+        style="text-transform:uppercase;letter-spacing:3px;" oninput="this.value=this.value.toUpperCase()"/>
+      <input class="field" id="adminPass" type="password" placeholder="كلمة سر المشرف" maxlength="30"/>
+    </div>
+    <button class="btn btn-green btn-lg" onclick="adminLogin()" style="border-radius:12px;">
+      🚀 دخول
+    </button>
+    <p style="margin-top:16px;font-size:.75rem;color:var(--border);">كلمة السر الافتراضية: <b style="color:var(--muted)">admin123</b></p>
+  </div>
+</div>
+
+<!-- ══ LOCK BANNER ══ -->
+<div id="lockBanner">🔒 الامتحان مقفول — الطلاب شايفوا شاشة انتهى الوقت</div>
+
+<!-- ══ ADMIN SCREEN ══ -->
+<div id="adminScreen">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">Quiz <span>Admin</span> 🛡️</div>
+      <div class="room-badge">غرفة: <b id="tbRoom">—</b> <span class="live-dot"></span></div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-sm btn-ghost theme-btn" onclick="toggleTheme()" title="تبديل الوضع الليلي / النهاري">🌙 ليلي</button>
+      <button class="btn btn-sm btn-ghost" onclick="openSettings()" title="الإعدادات والتخصيص">⚙️ الإعدادات</button>
+      <button class="btn btn-sm btn-ghost" onclick="changeRoom()">🔄 غيّر الغرفة</button>
+      <button class="btn btn-sm btn-ghost" onclick="logout()">خروج</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabbar">
+    <button class="btn btn-md tab-btn active" id="tabBtnQuiz" onclick="showTab('quiz')">🎮 لوحة الكويز</button>
+    <button class="btn btn-md tab-btn" id="tabBtnExam" onclick="showTab('exam')">📝 لوحة الامتحان</button>
+    <button class="btn btn-md tab-btn" id="tabBtnClasses" onclick="showTab('classes')">🏫 إدارة الصفوف والملفات</button>
+  </div>
+
+  <!-- ══ QUIZ TAB ══ -->
+  <div id="quizTab">
+
+    <!-- Stats -->
+    <div class="stats-bar">
+      <div class="stat-card"><div class="stat-num green" id="stOnline">0</div><div class="stat-lbl">طالب أونلاين</div></div>
+      <div class="stat-card"><div class="stat-num yellow" id="stTopXP">0</div><div class="stat-lbl">أعلى XP</div></div>
+      <div class="stat-card"><div class="stat-num blue" id="stAvgXP">0</div><div class="stat-lbl">متوسط XP</div></div>
+      <div class="stat-card"><div class="stat-num red" id="stZeroXP">0</div><div class="stat-lbl">XP = صفر</div></div>
+    </div>
+
+    <!-- Main -->
+    <div class="main">
+
+      <!-- Player Table -->
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">👥 الطلاب في الغرفة</span>
+          <input class="search-box" id="searchBox" type="text" placeholder="🔍 بحث باسم..." oninput="renderPlayers()"/>
+        </div>
+        <div class="player-list" id="playerList">
+          <div class="empty"><div class="e-icon">⏳</div><p>جاري الاتصال بالسيرفر...</p></div>
+        </div>
+      </div>
+
+      <!-- Sidebar -->
+      <div class="sidebar">
+
+        <!-- Quick actions -->
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">⚡ إجراءات سريعة</span></div>
+          <div class="action-grid">
+            <button class="btn btn-yellow btn-lg" onclick="giftAll(S.giftAll)">🎁 +<span class="sGiftAll">50</span> XP للكل</button>
+            <button class="btn btn-blue btn-lg" onclick="resetAllXP()">🔄 صفّر الكل</button>
+            <button class="btn btn-orange btn-lg" onclick="kickAll()">🚪 أطرد الكل</button>
+            <button class="btn btn-purple btn-lg" onclick="confirmEndExam()">🏁 أنهِ وأطلع الكل</button>
+          </div>
+          <div style="padding:0 14px 14px;">
+            <button class="btn btn-red btn-lg" id="lockBtn" onclick="toggleLock()">
+              🔒 قفل الامتحان
+            </button>
+          </div>
+        </div>
+
+        <!-- Score / Progress visibility -->
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">👁️ إخفاء عن الطالب</span></div>
+          <div class="action-grid" style="padding:0 14px 14px;">
+            <button class="btn btn-ghost btn-lg" id="hideScoreBtn" onclick="toggleHideScore()">🙈 إخفاء الدرجة</button>
+            <button class="btn btn-ghost btn-lg" id="hideProgressBtn" onclick="toggleHideProgress()">🙈 إخفاء الدرجة والتقدم</button>
+          </div>
+        </div>
+
+        <!-- Gift XP -->
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">🎁 إضافة / خصم XP</span></div>
+          <div class="gift-section">
+            <label>اختر طالب أو اكتب "الكل"</label>
+            <input class="field" id="giftTarget" type="text" placeholder="اسم الطالب أو «الكل»" style="margin-bottom:10px;font-size:.9rem;padding:10px 14px;"/>
+            <label>المبلغ</label>
+            <div class="gift-presets">
+              <div class="preset-btn" onclick="setPreset(10)">+10</div>
+              <div class="preset-btn" onclick="setPreset(25)">+25</div>
+              <div class="preset-btn" onclick="setPreset(50)">+50</div>
+              <div class="preset-btn" onclick="setPreset(100)">+100</div>
+              <div class="preset-btn" onclick="setPreset(-10)">-10</div>
+              <div class="preset-btn" onclick="setPreset(-25)">-25</div>
+            </div>
+            <div class="gift-input-row">
+              <input class="gift-input" id="giftAmt" type="number" placeholder="0" value="0"/>
+              <button class="btn btn-yellow btn-md" onclick="giveGift()">منح 🎁</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Edit XP directly -->
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">✏️ تعديل XP مباشر</span></div>
+          <div class="gift-section">
+            <label>اسم الطالب</label>
+            <input class="field" id="editTarget" type="text" placeholder="اسم الطالب" style="margin-bottom:10px;font-size:.9rem;padding:10px 14px;"/>
+            <label>قيمة XP الجديدة</label>
+            <div class="gift-input-row">
+              <input class="gift-input" id="editVal" type="number" placeholder="0" value="0"/>
+              <button class="btn btn-blue btn-md" onclick="setXP()">ضبط ✔</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Banned Players -->
+        <div class="panel" id="banPanel">
+          <div class="panel-head">
+            <span class="panel-title">🚫 المحظورون من الغرفة</span>
+            <button class="btn btn-sm btn-ghost" onclick="clearAllBans()" title="رفع الحظر عن الكل">رفع الكل</button>
+          </div>
+          <div id="banList" style="padding:10px 14px;min-height:40px;">
+            <div style="text-align:center;color:var(--muted);font-size:.8rem;padding:8px">لا يوجد محظورون</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ EXAM TAB ══ -->
+  <div id="examTab" style="display:none">
+
+    <!-- Stats -->
+    <div class="stats-bar">
+      <div class="stat-card"><div class="stat-num blue" id="exTot">0</div><div class="stat-lbl">مسجّلين</div></div>
+      <div class="stat-card"><div class="stat-num green" id="exOn">0</div><div class="stat-lbl">متصل الآن</div></div>
+      <div class="stat-card"><div class="stat-num purple" id="exFin">0</div><div class="stat-lbl">سلّموا</div></div>
+      <div class="stat-card"><div class="stat-num red" id="exBan">0</div><div class="stat-lbl">محظور</div></div>
+    </div>
+
+    <div class="ex-toolbar">
+      <select id="exFilter" onchange="examPaint()"><option value="">كل الطلاب (كل الملفات)</option></select>
+      <button class="btn btn-green btn-md" onclick="examExportCSV('general')">📥 تصدير النتائج CSV</button>
+      <span style="font-size:.72rem;color:var(--muted);font-weight:700;">الشيت يحتوي: الرقم، الاسم، الصف، الدرجة، النسبة، المجاب، المخالفات، سبب الطرد.</span>
+    </div>
+
+    <div class="hidden-note" id="exHiddenNote" style="display:none"></div>
+
+    <div style="padding:0 20px 20px;display:grid;gap:16px;">
+
+      <!-- Hardest questions -->
+      <div class="panel" id="exHardPanel">
+        <div class="panel-head"><span class="panel-title">🔥 تحليل أصعب الأسئلة (أكثر <span class="sHardN">3</span> أسئلة خطأ)</span><span id="exHardMeta" style="font-size:.72rem;color:var(--muted);font-weight:700;"></span></div>
+        <div id="exHard"><div style="text-align:center;color:var(--muted);font-size:.8rem;padding:14px">لا توجد إجابات بعد.</div></div>
+      </div>
+
+      <!-- Mode switch -->
+      <div class="panel">
+        <div class="panel-head"><span class="panel-title">⚙️ وضع الامتحان</span></div>
+        <div style="padding:14px 18px;">
+          <div class="ex-mode">
+            <div><div class="t">حالة الامتحان</div><div class="d" id="exModeDesc">مغلق — لا أحد يستطيع الدخول</div></div>
+            <div class="ex-sw" id="exSw" onclick="examToggleMode()"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Score / Progress visibility -->
+      <div class="panel">
+        <div class="panel-head"><span class="panel-title">👁️ إخفاء عن الطالب</span></div>
+        <div class="action-grid" style="padding:0 18px 18px;">
+          <button class="btn btn-ghost btn-lg" id="exHideScoreBtn" onclick="examToggleHideScore()">🙈 إخفاء الدرجة</button>
+          <button class="btn btn-ghost btn-lg" id="exHideProgressBtn" onclick="examToggleHideProgress()">🙈 إخفاء الدرجة والتقدم</button>
+        </div>
+      </div>
+
+      <!-- Bulk exam tools -->
+      <div class="panel">
+        <div class="panel-head"><span class="panel-title">⏱️ أدوات جماعية</span></div>
+        <div class="action-grid" style="padding:0 18px 6px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));">
+          <button class="btn btn-ghost btn-md" onclick="examTimeAll('addTime',S.timeA,'general')">⏱️ +<span class="sTimeA">5</span> دقائق للكل</button>
+          <button class="btn btn-ghost btn-md" onclick="examTimeAll('addTime',S.timeB,'general')">⏱️ +<span class="sTimeB">10</span> دقائق للكل</button>
+          <button class="btn btn-blue btn-md" onclick="examTimeAll('resetTime',0,'general')">🔄 إعادة الوقت للكل</button>
+          <button class="btn btn-purple btn-md" onclick="examSubmitAll('general')">✅ تسليم عند الكل</button>
+        </div>
+        <div style="padding:0 18px 16px;font-size:.72rem;color:var(--muted);font-weight:700;">
+          الأوامر بتتنفّذ فوراً للمتصلين، وبتتطبّق تلقائياً لغير المتصلين أول ما يدخلوا.
+        </div>
+      </div>
+
+      <!-- Add student -->
+      <div class="panel">
+        <div class="panel-head"><span class="panel-title">➕ إضافة طالب للقائمة العامة (بدون ربط بملف امتحان)</span></div>
+        <div class="gift-section">
+          <div style="font-size:.72rem;color:var(--muted);font-weight:700;margin-bottom:8px;">للربط الحصري بصف وملف امتحان استخدم تبويب «🏫 إدارة الصفوف والملفات».</div>
+          <div class="field-row">
+            <input class="field" id="exNum" type="text" inputmode="numeric" maxlength="12" placeholder="رقم الطالب" style="font-size:.9rem;padding:10px 14px;"/>
+            <input class="field" id="exName" type="text" maxlength="40" placeholder="الاسم (اختياري)" style="font-size:.9rem;padding:10px 14px;"/>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-green btn-md" style="flex:1" onclick="examAddStudent()">➕ إضافة</button>
+            <button class="btn btn-ghost btn-md" style="flex:1" onclick="examBulkAdd()">🔢 أرقام 1 → N</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Students -->
+      <div class="panel">
+        <div class="panel-head"><span class="panel-title">👥 الطلاب</span></div>
+        <div class="ex-grid" id="exList"></div>
+        <div class="empty" id="exEmpty" style="display:none"><div class="e-icon">🗒️</div><p>لا يوجد طلاب — أضف أرقاماً بالأعلى.</p></div>
+      </div>
+
+      <!-- Banned -->
+      <div class="panel" id="exBanPanel">
+        <div class="panel-head"><span class="panel-title">🚫 المحظورون</span></div>
+        <div id="exBanList" style="padding:10px 14px;min-height:40px;">
+          <div style="text-align:center;color:var(--muted);font-size:.8rem;padding:8px">لا يوجد محظورون</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ CLASSES TAB ══ -->
+  <div id="classesTab" style="display:none">
+    <div class="stats-bar">
+      <div class="stat-card"><div class="stat-num yellow" id="clStClasses">0</div><div class="stat-lbl">صفوف</div></div>
+      <div class="stat-card"><div class="stat-num blue" id="clStExams">0</div><div class="stat-lbl">ملفات امتحانات</div></div>
+      <div class="stat-card"><div class="stat-num green" id="clStStudents">0</div><div class="stat-lbl">طلاب مصرح لهم</div></div>
+      <div class="stat-card"><div class="stat-num red" id="clStDup">0</div><div class="stat-lbl">أرقام مكررة</div></div>
+    </div>
+
+    <div class="crumb" id="clCrumb"></div>
+
+    <div style="padding:0 20px 20px;display:grid;gap:16px;">
+
+      <!-- LEVEL 1: classes -->
+      <div id="clLevelClasses" style="display:grid;gap:16px;">
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">➕ إضافة صف</span></div>
+          <div class="gift-section">
+            <div class="field-row">
+              <input class="field" id="clNum" type="text" maxlength="12" placeholder="رقم الصف (مثال: 101)" style="font-size:.9rem;padding:10px 14px;"/>
+              <input class="field" id="clName" type="text" maxlength="60" placeholder="اسم الصف (مثال: الصف العاشر أ)" style="font-size:.9rem;padding:10px 14px;"/>
+            </div>
+            <label class="chk"><input type="checkbox" id="clGen" checked/> يظهر طلاب هذا الصف في «📝 لوحة الامتحان» العامة (لو شلت العلامة هيظهروا هنا بس داخل الصف والملف)</label>
+            <button class="btn btn-green btn-md" style="width:100%" onclick="clsAdd()">➕ إضافة الصف</button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">🏫 الصفوف</span><span style="font-size:.72rem;color:var(--muted);font-weight:700;">اضغط على أي صف لفتح ملفات امتحاناته</span></div>
+          <div class="cls-grid" id="clList"></div>
+          <div class="empty" id="clEmpty" style="display:none"><div class="e-icon">🏫</div><p>لا توجد صفوف بعد — أضف صفاً بالأعلى.</p></div>
+        </div>
+      </div>
+
+      <!-- LEVEL 2: class detail (exam files) -->
+      <div id="clLevelClass" style="display:none;gap:16px;">
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-title" id="clDetTitle">—</span>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-sm btn-ghost" onclick="clsBack(0)">↩️ كل الصفوف</button>
+              <button class="btn btn-sm btn-danger-outline" onclick="clsDelete(clSel.cls)">🗑️ حذف الصف</button>
+            </div>
+          </div>
+          <div class="gift-section">
+            <label>➕ إضافة ملف امتحان لهذا الصف</label>
+            <div class="field-row">
+              <input class="field" id="exfCode" type="text" maxlength="24" placeholder="كود ملف الامتحان (مثال: MID1)" style="font-size:.9rem;padding:10px 14px;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"/>
+              <input class="field" id="exfName" type="text" maxlength="60" placeholder="اسم الامتحان (مثال: امتحان منتصف الفصل)" style="font-size:.9rem;padding:10px 14px;"/>
+            </div>
+            <label class="chk"><input type="checkbox" id="exfGen" checked/> يظهر طلاب هذا الملف في «📝 لوحة الامتحان» العامة</label>
+            <button class="btn btn-blue btn-md" style="width:100%" onclick="exfAdd()">📝 إضافة ملف الامتحان</button>
+            <div style="font-size:.72rem;color:var(--muted);font-weight:700;margin-top:8px;">اكتب نفس الكود ورقم الصف في إعدادات «مولّد الامتحانات» حتى يفحص ملف الطالب هذه القائمة حصراً.</div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">📚 ملفات الامتحانات المربوطة بهذا الصف</span></div>
+          <div class="cls-grid" id="exfList"></div>
+          <div class="empty" id="exfEmpty" style="display:none"><div class="e-icon">📝</div><p>لا توجد ملفات امتحانات لهذا الصف بعد.</p></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">👁️ الظهور في لوحة الامتحان العامة</span></div>
+          <div style="padding:14px 18px;">
+            <div class="ex-mode">
+              <div><div class="t">إظهار طلاب هذا الصف (كل ملفاته) في «📝 لوحة الامتحان» العامة</div><div class="d" id="clGenDesc">—</div></div>
+              <div class="ex-sw" id="clGenSw" onclick="clsToggleGeneral('cls')"></div>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">📝 لوحة امتحان هذا الصف (كل ملفاته)</span><span id="clExMeta" style="font-size:.72rem;color:var(--muted);font-weight:700;"></span></div>
+          <div class="action-grid" style="padding:14px 18px 6px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">
+            <button class="btn btn-ghost btn-md" onclick="examTimeAll('addTime',S.timeA,'cls')">⏱️ +<span class="sTimeA">5</span> د للكل</button>
+            <button class="btn btn-ghost btn-md" onclick="examTimeAll('addTime',S.timeB,'cls')">⏱️ +<span class="sTimeB">10</span> د للكل</button>
+            <button class="btn btn-blue btn-md" onclick="examTimeAll('resetTime',0,'cls')">🔄 إعادة الوقت</button>
+            <button class="btn btn-purple btn-md" onclick="examSubmitAll('cls')">✅ تسليم عند الكل</button>
+            <button class="btn btn-green btn-md" onclick="examExportCSV('cls')">📥 CSV</button>
+          </div>
+          <div class="ex-grid" id="clExList"></div>
+          <div class="empty" id="clExEmpty" style="display:none"><div class="e-icon">🗒️</div><p>لا يوجد طلاب هنا بعد.</p></div>
+        </div>
+      </div>
+
+      <!-- LEVEL 3: exam file detail (students) -->
+      <div id="clLevelExam" style="display:none;gap:16px;">
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-title" id="exfDetTitle">—</span>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="btn btn-sm btn-ghost" onclick="clsBack(1)">↩️ ملفات الصف</button>
+              <button class="btn btn-sm btn-ghost" onclick="clsBack(0)">🏫 كل الصفوف</button>
+              <button class="btn btn-sm btn-danger-outline" onclick="exfDelete()">🗑️ حذف الملف</button>
+            </div>
+          </div>
+          <div class="gift-section">
+            <label>➕ إضافة طالب مصرح له بدخول هذا الامتحان تحديداً</label>
+            <div class="field-row">
+              <input class="field" id="stNum" type="text" inputmode="numeric" maxlength="12" placeholder="رقم الطالب" style="font-size:.9rem;padding:10px 14px;"/>
+              <input class="field" id="stName" type="text" maxlength="60" placeholder="اسم الطالب الكامل" style="font-size:.9rem;padding:10px 14px;"/>
+            </div>
+            <button class="btn btn-green btn-md" style="width:100%" onclick="stAdd()">➕ إضافة الطالب</button>
+            <div class="divider" style="margin:14px 0;"></div>
+            <label>📋 استيراد سريع (Bulk Paste) — كل سطر: رقم، اسم</label>
+            <textarea class="field" id="stBulk" placeholder="12، أحمد محمد علي
+13, سارة خالد حسن
+14	ليان عبدالله"></textarea>
+            <button class="btn btn-purple btn-md" style="width:100%" onclick="stBulkAdd()">📋 استيراد القائمة</button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">👥 الطلاب المصرح لهم</span><span id="stCount" style="font-size:.72rem;color:var(--muted);font-weight:700;"></span></div>
+          <div id="stList"></div>
+          <div class="empty" id="stEmpty" style="display:none"><div class="e-icon">👥</div><p>لا يوجد طلاب في هذا الملف — أضف طلاباً بالأعلى.</p></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">👁️ الظهور في لوحة الامتحان العامة</span></div>
+          <div style="padding:14px 18px;">
+            <div class="ex-mode">
+              <div><div class="t">إظهار طلاب هذا الملف في «📝 لوحة الامتحان» العامة</div><div class="d" id="exfGenDesc">—</div></div>
+              <div class="ex-sw" id="exfGenSw" onclick="clsToggleGeneral('file')"></div>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">📝 لوحة امتحان هذا الملف</span><span id="exfExMeta" style="font-size:.72rem;color:var(--muted);font-weight:700;"></span></div>
+          <div class="action-grid" style="padding:14px 18px 6px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">
+            <button class="btn btn-ghost btn-md" onclick="examTimeAll('addTime',S.timeA,'file')">⏱️ +<span class="sTimeA">5</span> د للكل</button>
+            <button class="btn btn-ghost btn-md" onclick="examTimeAll('addTime',S.timeB,'file')">⏱️ +<span class="sTimeB">10</span> د للكل</button>
+            <button class="btn btn-blue btn-md" onclick="examTimeAll('resetTime',0,'file')">🔄 إعادة الوقت</button>
+            <button class="btn btn-purple btn-md" onclick="examSubmitAll('file')">✅ تسليم عند الكل</button>
+            <button class="btn btn-green btn-md" onclick="examExportCSV('file')">📥 CSV</button>
+          </div>
+          <div class="ex-grid" id="exfExList"></div>
+          <div class="empty" id="exfExEmpty" style="display:none"><div class="e-icon">🗒️</div><p>لا يوجد طلاب هنا بعد.</p></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ DIALOGS ══ -->
+<div class="overlay" id="kickDialog">
+  <div class="dialog">
+    <h3>🚪 طرد الطالب</h3>
+    <p id="kickMsg">هتطرد <b></b> من الغرفة — الـ XP بتاعه هيتمسح.</p>
+    <div class="dialog-btns">
+      <button class="btn btn-ghost btn-md" onclick="closeDialog('kickDialog')">إلغاء</button>
+      <button class="btn btn-red btn-md" id="kickConfirmBtn">طرد</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="endDialog">
+  <div class="dialog">
+    <h3>🏁 إنهاء الامتحان</h3>
+    <p>هتطلع <b>كل</b> الطلاب من الغرفة وتنتهي الجلسة. تأكيد؟</p>
+    <div class="dialog-btns">
+      <button class="btn btn-ghost btn-md" onclick="closeDialog('endDialog')">إلغاء</button>
+      <button class="btn btn-red btn-md" onclick="endExam()">نعم، أنهِ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Ban dialog -->
+<div class="overlay" id="banDialog">
+  <div class="dialog">
+    <h3>🚫 حظر الطالب</h3>
+    <p id="banMsg">هتحظر <b></b> من الغرفة — لو حاول يدخل تاني هيلاقي رسالة حظر.</p>
+    <div class="dialog-btns">
+      <button class="btn btn-ghost btn-md" onclick="closeDialog('banDialog')">إلغاء</button>
+      <button class="btn btn-red btn-md" id="banConfirmBtn">🚫 حظر</button>
+    </div>
+  </div>
+</div>
+
+<!-- Exam answer review dialog -->
+<div class="overlay" id="exReviewDialog">
+  <div class="dialog exam-review-box">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+      <div style="flex:1;">
+        <h3 id="exRevName" style="margin-bottom:2px;">—</h3>
+        <p style="color:var(--muted);font-size:.78rem;" id="exRevMeta"></p>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeDialog('exReviewDialog')">✕</button>
+    </div>
+    <div class="ex-scb" id="exRevScore"></div>
+    <div id="exRevBody"></div>
+  </div>
+</div>
+
+<!-- Settings dialog -->
+<div class="overlay" id="setDialog">
+  <div class="dialog set-box">
+    <div class="set-head">
+      <h3>⚙️ الإعدادات والتخصيص</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeDialog('setDialog')">✕</button>
+    </div>
+    <p style="font-size:.74rem;margin-bottom:14px;text-align:right;">كل التغييرات بتتطبّق فوراً وبتتحفظ في المتصفح — هتلاقيها زي ما هي أول ما تفتح الملف تاني.</p>
+    <div id="setBody"></div>
+    <div class="set-foot">
+      <button class="btn btn-ghost btn-md" onclick="settingsExport()">📤 تصدير الإعدادات</button>
+      <button class="btn btn-ghost btn-md" onclick="document.getElementById('setImport').click()">📥 استيراد إعدادات</button>
+      <button class="btn btn-danger-outline btn-md" onclick="settingsReset()">♻️ استرجاع الافتراضي</button>
+    </div>
+    <input type="file" id="setImport" accept="application/json,.json" style="display:none" onchange="settingsImport(this)"/>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAh79hd67hAAtTmPONtb3XJ_Hp4ZyulPqc",
+  authDomain: "osama-fb2ce.firebaseapp.com",
+  databaseURL: "https://osama-fb2ce-default-rtdb.firebaseio.com",
+  projectId: "osama-fb2ce",
+  storageBucket: "osama-fb2ce.firebasestorage.app",
+  messagingSenderId: "994429598897",
+  appId: "1:994429598897:web:4536c81cebef2e16e8f690"
+};
+
+const app  = initializeApp(firebaseConfig);
+const db   = getDatabase(app);
+
+// ── expose to global
+window._db      = db;
+window._ref     = ref;
+window._set     = set;
+window._get     = get;
+window._onValue = onValue;
+window._remove  = remove;
+window._update  = update;
+window._fbReady = true;
+</script>
+
+<script>
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+const ADMIN_PASS = 'admin123';
+let currentRoom  = '';
+let players      = {};   // { id: {name, xp, ts} }
+let listener     = null;
+let lockListener = null;
+let isLocked     = false;
+let hideScore    = false;   // إخفاء الدرجة عن الأدمن (محليًا بس)
+let hideProgress = false;   // إخفاء الدرجة والتقدم عن الأدمن (محليًا بس)
+
+const MP_COLORS=[{bg:'#3a1f6e',fg:'#c4b5fd'},{bg:'#1a3a1f',fg:'#86efac'},{bg:'#3a1f1f',fg:'#fca5a5'},{bg:'#1a2e3a',fg:'#7dd3fc'},{bg:'#3a2e1a',fg:'#fcd34d'},{bg:'#2d1a3a',fg:'#e879f9'},{bg:'#1a3a35',fg:'#5eead4'},{bg:'#3a2a1a',fg:'#fb923c'}];
+
+// ── wait firebase
+function waitFb(cb){
+  if(window._fbReady){cb();return;}
+  const t=setInterval(()=>{if(window._fbReady){clearInterval(t);cb();}},100);
+}
+
+// ══════════════════════════════════════════════
+// LOGIN / LOGOUT
+// ══════════════════════════════════════════════
+function adminLogin(){
+  const room = document.getElementById('adminRoom').value.trim().toUpperCase();
+  const pass = document.getElementById('adminPass').value.trim();
+  if(!room){toast('اكتب كود الغرفة','red');return;}
+  if(pass !== ADMIN_PASS){toast('كلمة السر غلط ❌','red');return;}
+  currentRoom = room;
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('adminScreen').style.display='flex';
+  document.getElementById('adminScreen').style.flexDirection='column';
+  document.getElementById('tbRoom').textContent = room;
+  if(S.rememberRoom){ S.lastRoom = room; settingsSave(); }
+  paintHideBtns();
+  waitFb(()=>{ listenRoom(); listenLock(); listenBans(); listenClasses(); });
+  showTab(S.defaultTab||'quiz');
+}
+
+function logout(){
+  if(listener){ listener(); listener=null; }
+  if(lockListener){ lockListener(); lockListener=null; }
+  if(banListener){ banListener(); banListener=null; }
+  if(examListener){ examListener(); examListener=null; examStarted=false; }
+  if(classesListener){ classesListener(); classesListener=null; }
+  players={};
+  document.getElementById('adminScreen').style.display='none';
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('lockBanner').style.display='none';
+  document.getElementById('lockBtn').textContent='🔒 قفل الامتحان';
+  isLocked=false;
+  showTab('quiz');
+}
+
+function changeRoom(){
+  logout();
+}
+
+// ══════════════════════════════════════════════
+// LISTEN
+// ══════════════════════════════════════════════
+function listenRoom(){
+  const db=window._db, ref=window._ref, onValue=window._onValue;
+  if(listener) listener();
+  listener = onValue(ref(db,`rooms/${currentRoom}/players`), snap=>{
+    players = snap.val() || {};
+    renderPlayers();
+    updateStats();
+  });
+}
+
+function listenLock(){
+  const db=window._db, ref=window._ref, onValue=window._onValue;
+  if(lockListener) lockListener();
+  lockListener = onValue(ref(db,`rooms/${currentRoom}/locked`), snap=>{
+    isLocked = snap.val() === true;
+    document.getElementById('lockBanner').style.display = isLocked ? 'block' : 'none';
+    document.getElementById('lockBtn').textContent = isLocked ? '🔓 فتح الامتحان' : '🔒 قفل الامتحان';
+    document.getElementById('lockBtn').className = isLocked
+      ? 'btn btn-ghost btn-lg' : 'btn btn-red btn-lg';
+  });
+}
+
+// ══════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════
+function renderPlayers(){
+  const q     = (document.getElementById('searchBox').value||'').toLowerCase();
+  const list  = document.getElementById('playerList');
+  const sorted = Object.entries(players)
+    .map(([id,p])=>({id,...p}))
+    .filter(p=>(p.name||'').toLowerCase().includes(q))
+    .sort((a,b)=>(b.xp||0)-(a.xp||0));
+
+  if(!sorted.length){
+    list.innerHTML=`<div class="empty"><div class="e-icon">😶</div><p>${q?'مفيش نتيجة للبحث':'الغرفة فاضية دلوقتي'}</p></div>`;
+    return;
+  }
+
+  list.innerHTML = sorted.map((p,i)=>{
+    const ac = MP_COLORS[i % MP_COLORS.length];
+    const init = (p.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2);
+    const rc = i===0?'r1':i===1?'r2':i===2?'r3':'rN';
+    const xp = p.xp||0;
+    const ts = p.ts ? timeSince(p.ts) : '';
+    const xpHtml = (hideScore||hideProgress) ? '<span style="opacity:.4">•••</span>' : `${xp} XP`;
+    return `<div class="player-row">
+      <div class="p-rank ${rc}">${hideProgress ? '•' : (i+1)}</div>
+      <div class="p-av" style="background:${ac.bg};color:${ac.fg}">${init}</div>
+      <div class="p-info">
+        <div class="p-name">${esc(p.name||'؟')}</div>
+        <div class="p-meta">انضم ${ts}</div>
+      </div>
+      <div class="p-xp">${xpHtml}</div>
+      <div class="p-actions">
+        <button class="btn btn-sm btn-yellow" onclick="quickGift('${p.id}','${esc(p.name)}',S.quickGift)" title="+${S.quickGift} XP">+${S.quickGift}</button>
+        <button class="btn btn-sm btn-ghost" onclick="openEditFor('${esc(p.name)}')" title="تعديل XP">✏️</button>
+        <button class="btn btn-sm btn-danger-outline" onclick="confirmKick('${p.id}','${esc(p.name)}')" title="طرد">✕</button>
+        <button class="btn btn-sm" style="background:#4a0000;color:#ff9999;border:1.5px solid var(--red)" onclick="confirmBan('${p.id}','${esc(p.name)}')" title="حظر من الغرفة">🚫</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateStats(){
+  const list = Object.values(players);
+  const n = list.length;
+  const xpArr = list.map(p=>p.xp||0);
+  document.getElementById('stOnline').textContent = n;
+  document.getElementById('stTopXP').textContent  = hideProgress ? '•••' : (n ? Math.max(...xpArr) : 0);
+  document.getElementById('stAvgXP').textContent  = hideProgress ? '•••' : (n ? Math.round(xpArr.reduce((a,b)=>a+b,0)/n) : 0);
+  document.getElementById('stZeroXP').textContent = hideProgress ? '•••' : xpArr.filter(x=>x===0).length;
+}
+
+// ══════════════════════════════════════════════
+// XP ACTIONS
+// ══════════════════════════════════════════════
+function giftAll(amt){
+  const db=window._db,ref=window._ref,set=window._set;
+  Object.entries(players).forEach(([id,p])=>{
+    set(ref(db,`rooms/${currentRoom}/players/${id}/xp`), Math.max(0,(p.xp||0)+amt));
+  });
+  toast(`🎁 أُعطي ${amt > 0 ? '+' : ''}${amt} XP للكل`,'green');
+}
+
+function resetAllXP(){
+  const db=window._db,ref=window._ref,set=window._set;
+  Object.keys(players).forEach(id=>{
+    set(ref(db,`rooms/${currentRoom}/players/${id}/xp`),0);
+  });
+  toast('🔄 تم تصفير XP الكل','blue');
+}
+
+function quickGift(id, name, amt){
+  const db=window._db,ref=window._ref,set=window._set;
+  const cur = (players[id]?.xp||0);
+  set(ref(db,`rooms/${currentRoom}/players/${id}/xp`), Math.max(0,cur+amt));
+  toast(`+${amt} XP لـ ${name}`,'yellow');
+}
+
+function openEditFor(name){
+  document.getElementById('editTarget').value = name;
+  document.getElementById('editVal').focus();
+  window.scrollTo({top:9999,behavior:'smooth'});
+}
+
+function setXP(){
+  const name = document.getElementById('editTarget').value.trim();
+  const val  = parseInt(document.getElementById('editVal').value)||0;
+  if(!name){toast('اكتب اسم الطالب','red');return;}
+  const db=window._db,ref=window._ref,set=window._set;
+  const entry = Object.entries(players).find(([,p])=>p.name===name);
+  if(!entry){toast('الاسم ده مش موجود في الغرفة','red');return;}
+  set(ref(db,`rooms/${currentRoom}/players/${entry[0]}/xp`), Math.max(0,val));
+  toast(`✏️ XP ${name} = ${val}`,'blue');
+}
+
+function giveGift(){
+  const target = document.getElementById('giftTarget').value.trim();
+  const amt    = parseInt(document.getElementById('giftAmt').value)||0;
+  if(!target){toast('اكتب اسم أو «الكل»','red');return;}
+  if(amt===0){toast('اكتب قيمة','red');return;}
+  if(target==='الكل'){giftAll(amt);return;}
+  const db=window._db,ref=window._ref,set=window._set;
+  const entry = Object.entries(players).find(([,p])=>p.name===target);
+  if(!entry){toast('الاسم ده مش موجود','red');return;}
+  const cur = players[entry[0]]?.xp||0;
+  set(ref(db,`rooms/${currentRoom}/players/${entry[0]}/xp`), Math.max(0,cur+amt));
+  toast(`🎁 ${amt>0?'+':''}${amt} XP لـ ${target}`,'yellow');
+}
+
+function setPreset(val){
+  document.getElementById('giftAmt').value = val;
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+// ══════════════════════════════════════════════
+// BAN
+// ══════════════════════════════════════════════
+let bannedPlayers = {};
+let banListener = null;
+
+function listenBans(){
+  const db=window._db, ref=window._ref, onValue=window._onValue;
+  if(banListener) banListener();
+  banListener = onValue(ref(db,`rooms/${currentRoom}/banned`), snap=>{
+    bannedPlayers = snap.val() || {};
+    renderBans();
+  });
+}
+
+function renderBans(){
+  const list = document.getElementById('banList');
+  const entries = Object.entries(bannedPlayers);
+  if(!entries.length){
+    list.innerHTML='<div style="text-align:center;color:var(--muted);font-size:.8rem;padding:8px">لا يوجد محظورون</div>';
+    return;
+  }
+  list.innerHTML = entries.map(([key, b])=>{
+    const ts = b.ts ? timeSince(b.ts) : '';
+    return `<div class="ban-row">
+      <span style="font-size:.9rem">🚫</span>
+      <span class="ban-name">${esc(b.name||key)}</span>
+      <span class="ban-time">${ts}</span>
+      <button class="ban-unban" onclick="unbanPlayer('${key}','${esc(b.name||key)}')">رفع الحظر</button>
+    </div>`;
+  }).join('');
+}
+
+function confirmBan(id, name){
+  document.getElementById('banMsg').innerHTML = `هتحظر <b>${esc(name)}</b> من الغرفة — لو حاول يدخل تاني هيلاقي رسالة حظر.`;
+  document.getElementById('banConfirmBtn').onclick = ()=>banPlayer(id, name);
+  document.getElementById('banDialog').classList.add('show');
+}
+
+function banPlayer(id, name){
+  const db=window._db, ref=window._ref, set=window._set, remove=window._remove;
+  const devId = players[id]?.devId || null;
+  const banKey = 'ban_' + id;
+  set(ref(db,`rooms/${currentRoom}/banned/${banKey}`), { name, devId, ts: Date.now() });
+  remove(ref(db,`rooms/${currentRoom}/players/${id}`));
+  closeDialog('banDialog');
+  toast(`🚫 تم حظر ${name}`,'red');
+}
+
+function unbanPlayer(key, name){
+  const db=window._db, ref=window._ref, remove=window._remove;
+  remove(ref(db,`rooms/${currentRoom}/banned/${key}`));
+  toast(`✅ رُفع الحظر عن ${name}`,'green');
+}
+
+function clearAllBans(){
+  const db=window._db, ref=window._ref, remove=window._remove;
+  remove(ref(db,`rooms/${currentRoom}/banned`));
+  toast('✅ رُفع الحظر عن الكل','green');
+}
+
+// ══════════════════════════════════════════════
+// KICK
+// ══════════════════════════════════════════════
+function confirmKick(id, name){
+  document.getElementById('kickMsg').innerHTML = `هتطرد <b>${esc(name)}</b> من الغرفة — الـ XP بتاعه هيتمسح.`;
+  document.getElementById('kickConfirmBtn').onclick = ()=>kickPlayer(id,name);
+  document.getElementById('kickDialog').classList.add('show');
+}
+
+function kickPlayer(id, name){
+  const db=window._db,ref=window._ref,remove=window._remove;
+  remove(ref(db,`rooms/${currentRoom}/players/${id}`));
+  closeDialog('kickDialog');
+  toast(`🚪 تم طرد ${name}`,'red');
+}
+
+function kickAll(){
+  const db=window._db,ref=window._ref,remove=window._remove;
+  remove(ref(db,`rooms/${currentRoom}/players`));
+  toast('🚪 تم طرد الكل','red');
+}
+
+// ══════════════════════════════════════════════
+// LOCK / END
+// ══════════════════════════════════════════════
+function toggleLock(){
+  const db=window._db,ref=window._ref,set=window._set;
+  const next = !isLocked;
+  set(ref(db,`rooms/${currentRoom}/locked`), next);
+  toast(next ? '🔒 الامتحان اتقفل — الطلاب شايفوا رسالة انتهى الوقت' : '🔓 الامتحان اتفتح','orange');
+}
+
+function toggleHideScore(){
+  hideScore = !hideScore;
+  saveHides();
+  paintHideBtns();
+  renderPlayers();
+  toast(hideScore ? '🙈 اتخفت الدرجة عندك' : '👁️ رجعت الدرجة تظهر','orange');
+}
+
+function toggleHideProgress(){
+  hideProgress = !hideProgress;
+  saveHides();
+  paintHideBtns();
+  renderPlayers();
+  toast(hideProgress ? '🙈 اتخفت الدرجة والتقدم عندك' : '👁️ رجعوا الدرجة والتقدم يظهروا','orange');
+}
+
+function paintHideBtns(){
+  const sb = document.getElementById('hideScoreBtn'), pb = document.getElementById('hideProgressBtn');
+  if(sb){
+    sb.textContent = hideScore ? '👁️ إظهار الدرجة' : '🙈 إخفاء الدرجة';
+    sb.className = hideScore ? 'btn btn-orange btn-lg' : 'btn btn-ghost btn-lg';
+  }
+  if(pb){
+    pb.textContent = hideProgress ? '👁️ إظهار الدرجة والتقدم' : '🙈 إخفاء الدرجة والتقدم';
+    pb.className = hideProgress ? 'btn btn-orange btn-lg' : 'btn btn-ghost btn-lg';
+  }
+}
+
+function confirmEndExam(){
+  document.getElementById('endDialog').classList.add('show');
+}
+
+function endExam(){
+  // lock first (shows end screen to students), then remove all after delay
+  const db=window._db,ref=window._ref,set=window._set,remove=window._remove;
+  set(ref(db,`rooms/${currentRoom}/locked`), true);
+  setTimeout(()=>{
+    remove(ref(db,`rooms/${currentRoom}/players`));
+  }, 3000);
+  closeDialog('endDialog');
+  toast('🏁 تم إنهاء الامتحان وطرد الكل','red');
+}
+
+// ══════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════
+function closeDialog(id){document.getElementById(id).classList.remove('show');}
+
+let toastTimer;
+function toast(msg, color='green'){
+  const t = document.getElementById('toast');
+  const colors = {green:var_('--green'),red:var_('--red'),blue:var_('--blue'),yellow:var_('--yellow'),orange:var_('--orange')};
+  t.textContent = msg;
+  t.style.borderColor = colors[color]||colors.green;
+  t.style.color = colors[color]||colors.green;
+  clearTimeout(toastTimer);
+  t.classList.add('show');
+  toastTimer = setTimeout(()=>{ t.classList.remove('show'); }, S.toastMs||3000);
+}
+function var_(name){return getComputedStyle(document.documentElement).getPropertyValue(name).trim();}
+
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function timeSince(ts){
+  const s = Math.floor((Date.now()-ts)/1000);
+  if(s<60) return `منذ ${s}ث`;
+  if(s<3600) return `منذ ${Math.floor(s/60)}د`;
+  return `منذ ${Math.floor(s/3600)}س`;
+}
+
+// Enter key on login
+document.getElementById('adminPass').addEventListener('keydown',e=>{if(e.key==='Enter')adminLogin();});
+document.getElementById('adminRoom').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('adminPass').focus();});
+
+// Close dialogs on overlay click
+document.querySelectorAll('.overlay').forEach(el=>{
+  el.addEventListener('click',e=>{ if(e.target===el) el.classList.remove('show'); });
+});
+
+// ══════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════
+function showTab(name){
+  const isQuiz = name==='quiz', isExam = name==='exam', isCls = name==='classes';
+  document.getElementById('quizTab').style.display = isQuiz ? '' : 'none';
+  document.getElementById('examTab').style.display = isExam ? '' : 'none';
+  document.getElementById('classesTab').style.display = isCls ? '' : 'none';
+  document.getElementById('tabBtnQuiz').classList.toggle('active', isQuiz);
+  document.getElementById('tabBtnExam').classList.toggle('active', isExam);
+  document.getElementById('tabBtnClasses').classList.toggle('active', isCls);
+  if(isExam || isCls) examInit();
+  if(isCls) clsPaint();
+}
+
+// ══════════════════════════════════════════════
+// EXAM ADMIN (نفس نظام لوحة الامتحان - غرفة ثابتة، بس بثيم الكويز)
+// ══════════════════════════════════════════════
+const EXAM_ROOM = 'MAIN'; // لازم تكون نفس القيمة الموجودة في ملف الامتحان نفسه
+let examV = {};
+let examListener = null;
+let examStarted = false;
+let examHideScore = false;      // إخفاء الدرجة عن الأدمن (محليًا بس)
+let examHideProgress = false;   // إخفاء الدرجة والتقدم عن الأدمن (محليًا بس)
+
+function examInit(){
+  if(examStarted) return;
+  examStarted = true;
+  waitFb(()=>{
+    const db=window._db, ref=window._ref, onValue=window._onValue;
+    examListener = onValue(ref(db, `rooms/${EXAM_ROOM}`), snap=>{
+      examV = snap.val() || {};
+      examWatchKicks();
+      examPaint();
+      if(document.getElementById('classesTab').style.display!=='none') clsPaint();
+    });
+  });
+}
+
+// ── متابعة المخالفات (طرد الطلاب بسبب مخالفة أمنية)
+let examKickSeen = {};
+let examKickInit = false;
+function examKickLabel(e){ return (e && (e.kickReason || e.lastViolation)) || 'مخالفة أثناء الامتحان'; }
+function examWatchKicks(){
+  const exam = examV.exam||{}, studs = exRosterMap();
+  Object.keys(exam).forEach(n=>{
+    const e = exam[n]||{};
+    const key = (e.kicked===true) ? (e.kickedAt||1) : 0;
+    if(examKickInit && key && examKickSeen[n]!==key){
+      const nm = e.name || (studs[n]||{}).name || '';
+      toast('🚨 مخالفة: ' + (nm ? nm+' — ' : '') + 'رقم ' + (e.num||(studs[n]||{}).num||n) + ' — ' + examKickLabel(e), 'red');
+    }
+    examKickSeen[n] = key;
+  });
+  examKickInit = true;
+}
+function examUnkick(n){
+  const db=window._db, ref=window._ref, update=window._update;
+  update(ref(db, exPath(n)), {kicked:false, kickReason:null, kickedAt:null, locked:false, timerPaused:false, lastSeen:0});
+  toast('🔓 تم استئناف جلسة الرقم '+n,'green');
+}
+
+function exAgo(t){
+  if(!t) return '—';
+  const s = Math.floor((Date.now()-t)/1000);
+  if(s<60) return 'الآن';
+  if(s<3600) return Math.floor(s/60)+' د';
+  return Math.floor(s/3600)+' س';
+}
+function exIsOn(e){ return e && e.online===true && e.lastSeen && (Date.now()-e.lastSeen) < 40000; }
+function exBannedOf(){ return examV.banned || {}; }
+function exIsBanned(num, dev){
+  let hit=false;
+  const b = exBannedOf();
+  Object.keys(b).forEach(k=>{
+    const x=b[k]||{};
+    if(x.key && String(x.key)===String(num)) hit=true;
+    else if(!x.key && x.num && String(x.num)===String(num)) hit=true;
+    if(dev && x.devId && x.devId===dev) hit=true;
+  });
+  return hit;
+}
+
+function examToggleMode(){
+  const db=window._db, ref=window._ref, update=window._update;
+  const on = examV.examMode===true;
+  if(on && !confirm('قفل الامتحان هيسلّم عند كل الطلاب (المتصل وغير المتصل)، واللي يحاول يدخل بعد كده هيلاقي رسالة «الامتحان مغلق». متأكد؟')) return;
+  update(ref(db, `rooms/${EXAM_ROOM}`), {examMode: !on});
+  if(on) exRoster().forEach(r=>examForceSubmitRaw(r.key, true));
+  toast(!on ? '📝 تم فتح الامتحان' : '🏁 تم إنهاء الامتحان', !on?'green':'orange');
+}
+
+function examToggleHideScore(){
+  examHideScore = !examHideScore;
+  saveHides();
+  examPaint();
+  toast(examHideScore ? '🙈 اتخفت الدرجة عندك' : '👁️ رجعت الدرجة تظهر','orange');
+}
+
+function examToggleHideProgress(){
+  examHideProgress = !examHideProgress;
+  saveHides();
+  examPaint();
+  toast(examHideProgress ? '🙈 اتخفت الدرجة والتقدم عندك' : '👁️ رجعوا الدرجة والتقدم يظهروا','orange');
+}
+
+function examAddStudent(){
+  const db=window._db, ref=window._ref, update=window._update;
+  const n = (document.getElementById('exNum').value||'').trim();
+  const nm = (document.getElementById('exName').value||'').trim();
+  if(!n){ toast('اكتب الرقم','red'); return; }
+  update(ref(db, `rooms/${EXAM_ROOM}/students/${n}`), {num:n, name:nm||'', addedAt:Date.now()});
+  document.getElementById('exNum').value='';
+  document.getElementById('exName').value='';
+  toast('✅ تمت إضافة الرقم '+n, 'green');
+}
+
+function examBulkAdd(){
+  const v = prompt('كام طالب؟ (هيتضاف أرقام من 1 لحد الرقم ده)', '20');
+  const n = parseInt(v||'0',10);
+  if(!n || n<1 || n>300) return;
+  const db=window._db, ref=window._ref, update=window._update;
+  const u={};
+  for(let i=1;i<=n;i++) u[i] = {num:String(i), name:'', addedAt:Date.now()};
+  update(ref(db, `rooms/${EXAM_ROOM}/students`), u);
+  toast('✅ تمت إضافة '+n+' رقم','green');
+}
+
+function examBan(n){
+  const exam = examV.exam||{}, st = exRosterMap()[n]||{};
+  const ex = exam[n]||{};
+  if(!confirm('حظر الطالب '+(st.num||n)+' وجهازه؟')) return;
+  const db=window._db, ref=window._ref, update=window._update;
+  update(ref(db, `rooms/${EXAM_ROOM}/banned/${n}`), {num:st.num||n, key:n, name:ex.name||st.name||'', devId:ex.devId||'', ts:Date.now()});
+  toast('🚫 تم الحظر','red');
+}
+function examUnban(n){
+  const db=window._db, ref=window._ref, remove=window._remove;
+  remove(ref(db, `rooms/${EXAM_ROOM}/banned/${n}`));
+  toast('✅ تم رفع الحظر','green');
+}
+function examReset(n){
+  if(!confirm('تصفير امتحان الرقم '+n+'؟ هيبدأ من الأول.')) return;
+  const db=window._db, ref=window._ref, remove=window._remove, set=window._set;
+  remove(ref(db, `rooms/${EXAM_ROOM}/exam/${n}`));
+  set(ref(db, `rooms/${EXAM_ROOM}/exam/${n}/reset`), true);
+  toast('🔄 تم التصفير','blue');
+}
+function examUnsubmit(n){
+  const e = (examV.exam||{})[n] || {};
+  if(e.finished!==true){ toast('الطالب مسلّمش','orange'); return; }
+  if(!confirm('إلغاء تسليم الرقم '+n+'؟ هيكمّل من حيث توقف وهياخد 5 دقايق وقت على الأقل.')) return;
+  const db=window._db, ref=window._ref, update=window._update;
+  const MIN5 = 5*60*1000;
+  const cur = (typeof e.remainMs==='number' && !isNaN(e.remainMs)) ? e.remainMs : 0;
+  const left = Math.max(MIN5, Math.round(cur));
+  update(ref(db, `rooms/${EXAM_ROOM}/exam/${n}`), {
+    finished:false, finishedAt:null, unsubmittedAt:Date.now(),
+    remainMs: left, timerPaused:false,
+    kicked:false, kickReason:null, kickedAt:null, locked:false,
+    devId: e.devId || null,
+    cmd:{type:'setTime', min:Math.round(left/60000), ts:Date.now()}
+  });
+  toast('↩️ تم إلغاء التسليم — '+Math.round(left/60000)+' دقيقة وقت والتقدم محفوظ','blue');
+}
+function exTime(ms){
+  if(ms===null||ms===undefined||isNaN(ms)) return '—';
+  const t=Math.max(0,Math.round(ms/1000));
+  const m=Math.floor(t/60), sc=t%60;
+  return m+':'+(sc<10?'0':'')+sc;
+}
+function examDelete(n){
+  const st = exRosterMap()[n]||{};
+  if(!confirm('حذف الطالب '+(st.num||n)+' نهائياً من القائمة ومسح جلسته؟')) return;
+  const db=window._db, ref=window._ref, remove=window._remove;
+  if(st.legacy) remove(ref(db, `rooms/${EXAM_ROOM}/students/${n}`));
+  else if(st.clsKey && st.examCode) remove(ref(db, `rooms/${EXAM_ROOM}/classes/${st.clsKey}/exams/${st.examCode}/students/${n}`));
+  remove(ref(db, `rooms/${EXAM_ROOM}/exam/${n}`));
+  toast('🗑️ تم الحذف','red');
+}
+
+function exPath(n){ return `rooms/${EXAM_ROOM}/exam/${n}`; }
+function examCmd(n, payload){
+  const db=window._db, ref=window._ref, update=window._update;
+  update(ref(db, exPath(n)), {cmd: Object.assign({ts:Date.now()}, payload)});
+}
+function exScoreOf(e){
+  const rev = (e && e.review) || [];
+  let score=0, answered=0;
+  rev.forEach(r=>{ if(r && r.chosen!==null && r.chosen!==undefined){ answered++; if(r.chosen===r.correct) score++; } });
+  return {score, answered, total: (e&&e.total) || rev.length};
+}
+
+// ── التحكم في الوقت
+function examTimeOp(n, op, min){
+  const db=window._db, ref=window._ref, update=window._update;
+  const e = (examV.exam||{})[n] || {};
+  const dur = (e.durMin||0)*60000;
+  if(op!=='addTime' && op==='resetTime' && !dur){ toast('مفيش مدة محفوظة للطالب ده','orange'); return; }
+  const payload = {cmd: Object.assign({ts:Date.now()}, {type:op, min:min||0})};
+  if(!exIsOn(e)){
+    const cur = (typeof e.remainMs==='number') ? e.remainMs : dur;
+    let v = op==='addTime' ? Math.max(0, cur + (min||0)*60000)
+          : op==='resetTime' ? dur
+          : Math.max(0, (min||0)*60000);
+    payload.remainMs = Math.round(v);
+  }
+  update(ref(db, exPath(n)), payload);
+}
+function examAddTime(n, min){ examTimeOp(n,'addTime',min); toast('⏱️ تمت إضافة '+min+' دقيقة للرقم '+n,'green'); }
+function examResetTime(n){ examTimeOp(n,'resetTime',0); toast('🔄 تم إرجاع الوقت كامل للرقم '+n,'blue'); }
+function examZeroTime(n){
+  if(!confirm('تصفير وقت الرقم '+n+'؟ هيتسلّم امتحانه فوراً.')) return;
+  examTimeOp(n,'setTime',0); toast('⏹️ الوقت بقى صفر للرقم '+n,'orange');
+}
+function examTimeAll(op, min, scope){
+  const nums = exScopeRoster(scope||'general').map(r=>r.key);
+  if(!nums.length){ toast('مفيش طلاب','orange'); return; }
+  if(op==='resetTime' && !confirm('إعادة الوقت كامل لكل الطلاب؟')) return;
+  nums.forEach(n=>examTimeOp(n, op, min));
+  toast(op==='addTime' ? ('⏱️ +'+min+' دقيقة للكل') : '🔄 تم إرجاع الوقت للكل','green');
+}
+
+// ── التسليم الفوري
+function examForceSubmitRaw(n, silent){
+  const db=window._db, ref=window._ref, update=window._update;
+  const e = (examV.exam||{})[n] || {};
+  const st = exRosterMap()[n] || {};
+  if(e.finished===true) return;
+  if(exIsOn(e)){ examCmd(n, {type:'submit'}); }
+  const r = exScoreOf(e);
+  setTimeout(()=>{
+    const cur = (examV.exam||{})[n] || {};
+    if(cur.finished===true) return;
+    const rr = exScoreOf(cur);
+    update(ref(db, exPath(n)), {
+      name: cur.name||e.name||st.name||'',
+      num: n,
+      finished: true, finishedAt: Date.now(),
+      score: rr.score, answered: rr.answered, total: rr.total,
+      timerPaused: true, forcedByAdmin: true
+    });
+  }, exIsOn(e) ? 2500 : 0);
+  if(!silent) toast('✅ تم التسليم للرقم '+n,'purple');
+}
+function examForceSubmit(n){
+  const e = (examV.exam||{})[n] || {};
+  if(e.finished===true){ toast('الطالب سلّم بالفعل','orange'); return; }
+  if(!confirm('تسليم امتحان الرقم '+n+' فوراً؟')) return;
+  examForceSubmitRaw(n);
+}
+function examSubmitAll(scope){
+  const roster = exScopeRoster(scope||'general');
+  if(!roster.length){ toast('مفيش طلاب','orange'); return; }
+  if(!confirm('تسليم الامتحان عند كل الطلاب هنا ('+roster.length+' طالب — المتصل وغير المتصل)؟')) return;
+  roster.forEach(r=>examForceSubmitRaw(r.key, true));
+  toast('✅ تم التسليم عند الكل','purple');
+}
+
+// ── إعادة جلسة الطالب (تسجيل خروج من كل الأجهزة)
+function examSessionReset(n){
+  if(!confirm('إعادة جلسة الرقم '+n+'؟ هيتطلع من كل الأجهزة ويقدر يدخل من أي جهاز تاني.')) return;
+  const db=window._db, ref=window._ref, update=window._update;
+  update(ref(db, exPath(n)), {
+    cmd: {type:'session', ts:Date.now()},
+    devId: null, online: false, lastSeen: 0,
+    kicked: false, kickReason: null, kickedAt: null, locked: false, timerPaused: false
+  });
+  toast('🔑 تمت إعادة الجلسة للرقم '+n+' — يقدر يدخل فوراً من نفس الجهاز أو أي جهاز','blue');
+}
+
+function examPaint(){
+  const on = examV.examMode===true;
+  document.getElementById('exSw').classList.toggle('on', on);
+  document.getElementById('exModeDesc').textContent = on ? 'مفتوح — الطلبة يقدروا يدخلوا بأرقامهم' : 'مغلق — لا أحد يستطيع الدخول';
+
+  const exsb = document.getElementById('exHideScoreBtn'), expb = document.getElementById('exHideProgressBtn');
+  exsb.textContent = examHideScore ? '👁️ إظهار الدرجة' : '🙈 إخفاء الدرجة';
+  exsb.className = examHideScore ? 'btn btn-orange btn-lg' : 'btn btn-ghost btn-lg';
+  expb.textContent = examHideProgress ? '👁️ إظهار الدرجة والتقدم' : '🙈 إخفاء الدرجة والتقدم';
+  expb.className = examHideProgress ? 'btn btn-orange btn-lg' : 'btn btn-ghost btn-lg';
+
+  exPaintFilter();
+  const filt = (document.getElementById('exFilter').value||'');
+  const rosterAll = exScopeRoster('general');
+  const roster = filt ? rosterAll.filter(r=>r.fileId===filt) : rosterAll;
+  const cnt = exRenderCards('exList', 'exEmpty', roster);
+  document.getElementById('exTot').textContent = cnt.n;
+  document.getElementById('exOn').textContent = cnt.c1;
+  document.getElementById('exFin').textContent = cnt.c2;
+  document.getElementById('exHardPanel').style.display = S.showHard ? '' : 'none';
+  if(S.showHard) examPaintHardest(roster);
+  exPaintHiddenNote();
+
+  const b = exBannedOf(), bk = Object.keys(b);
+  document.getElementById('exBan').textContent = bk.length;
+  document.getElementById('exBanList').innerHTML = bk.length ? bk.map(k=>{
+    const x = b[k]||{};
+    return `<div class="ban-row"><span style="font-size:.9rem">🚫</span><span class="ban-name">رقم ${esc(x.num||'?')} — ${esc(x.name||'')}</span><button class="ban-unban" onclick="examUnban('${esc(k)}')">رفع الحظر</button></div>`;
+  }).join('') : '<div style="text-align:center;color:var(--muted);font-size:.8rem;padding:8px">لا يوجد محظورون</div>';
+}
+
+/* يرسم كروت الطلاب (نفس كروت لوحة الامتحان) في أي مكان: اللوحة العامة أو لوحة الصف أو لوحة الملف */
+function exRenderCards(listId, emptyId, roster){
+  const exam = examV.exam||{};
+  const studs = {}; roster.forEach(r=>studs[r.key]=r);
+  // حفظ الكروت اللي قائمة الخيارات فيها مفتوحة عشان ما تقفلش مع كل تحديث
+  const openNums = {};
+  document.querySelectorAll('#'+listId+' .ex-card details.ex-opts[open]').forEach(d=>{
+    const card = d.closest('.ex-card');
+    if(card && card.dataset.num) openNums[card.dataset.num] = true;
+  });
+  const nums = Object.keys(studs).sort((a,b)=>(parseInt(studs[a].num,10)||0)-(parseInt(studs[b].num,10)||0));
+  let c1=0,c2=0;
+  const html = nums.map(n=>{
+    const st = studs[n]||{}, e = exam[n]||{};
+    const vioN = e.violations ? Object.keys(e.violations).length : 0;
+    const live = exIsOn(e), fin = e.finished===true, ban = exIsBanned(n, e.devId);
+    const kick = e.kicked===true;
+    if(live && !fin) c1++;
+    if(fin) c2++;
+    const total = e.total||0, ansd = (e.progress && e.progress.answered) || e.answered || 0;
+    const pct = total ? Math.round(ansd/total*100) : 0;
+    const badge = ban ? '<span class="ex-badge bn">محظور</span>' : kick ? '<span class="ex-badge bn">🚨 موقوف بمخالفة</span>' : fin ? '<span class="ex-badge fin">سلّم</span>' : live ? '<span class="ex-badge on">متصل</span>' : '<span class="ex-badge">غير متصل</span>';
+    const kickLine = kick
+      ? `<div class="ex-flag" style="color:var(--red);border-color:var(--red)">🚨 سبب الإيقاف: ${esc(examKickLabel(e))}${e.kickedAt?(' — '+new Date(e.kickedAt).toLocaleTimeString('ar-EG')):''}</div>`
+      : '';
+    const curIdx = (e.progress && typeof e.progress.cur==='number') ? (e.progress.cur+1) : null;
+    const curQ = (!fin && curIdx && !examHideProgress)
+      ? `<div class="ex-flag">📍 واقف في سؤال ${curIdx}${total?(' من '+total):''}</div>` : '';
+    const barHtml = examHideProgress ? '' : `<div class="ex-bar"><i style="width:${pct}%"></i></div>`;
+    const leftMeta = examHideProgress ? '<span style="opacity:.4">•••</span>' : `${ansd} / ${total||'—'} إجابة`;
+    const rightMeta = (examHideProgress||examHideScore) ? '<span style="opacity:.4">•••</span>' : (fin ? ('النتيجة '+(e.score||0)+'/'+(e.total||0)) : ('آخر ظهور '+exAgo(e.lastSeen)));
+    const clsTag = st.legacy ? '' : `<span class="ex-cls">${esc(st.className||st.classNum||'')} · ${esc(st.examCode||'')}</span>`;
+    const vioLine = vioN ? `<div class="ex-flag" style="color:var(--orange)">⚠️ المخالفات: ${vioN}</div>` : '';
+    return `<div class="ex-card ${ban||kick?'ban':fin?'done':live?'live':''}" data-num="${esc(n)}">
+      <div class="ex-top"><span class="ex-num">${esc(st.num||n)}</span><span class="ex-nm">${esc(e.name||st.name||'— لم يدخل بعد')}</span>${clsTag}${badge}</div>
+      ${barHtml}
+      <div class="ex-meta"><span>${leftMeta}</span><span>${rightMeta}</span></div>
+      ${(e.remainMs!==undefined && e.remainMs!==null && !fin) ? `<div class="ex-meta"><span>الوقت المتبقي ${exTime(e.remainMs)}</span><span style="color:${live?'var(--green)':'var(--yellow)'}">${live?'الوقت شغّال':'الوقت متوقف'}</span></div>` : ''}
+      ${curQ}
+      ${vioLine}
+      ${kickLine}
+      <details class="ex-opts"${openNums[n]?' open':''}>
+        <summary class="btn btn-sm btn-ghost" style="width:100%;justify-content:center;list-style:none;cursor:pointer">⚙️ خيارات</summary>
+      <div class="ex-acts">
+        <div class="ex-line">
+          <span class="lbl">الوقت</span>
+          <button class="btn btn-sm btn-xs btn-ghost" onclick="examAddTime('${esc(n)}',S.timeA)">+${S.timeA} د</button>
+          <button class="btn btn-sm btn-xs btn-ghost" onclick="examAddTime('${esc(n)}',S.timeB)">+${S.timeB} د</button>
+          <button class="btn btn-sm btn-xs btn-blue" onclick="examResetTime('${esc(n)}')">🔄 إعادة</button>
+          <button class="btn btn-sm btn-xs btn-orange" onclick="examZeroTime('${esc(n)}')">⏹️ صفر</button>
+        </div>
+        <div class="ex-line">
+          <span class="lbl">المتابعة</span>
+          <button class="btn btn-sm btn-xs btn-ghost" onclick="examOpenReview('${esc(n)}')">📋 الإجابات</button>
+          ${fin
+            ? `<button class="btn btn-sm btn-xs btn-blue" onclick="examUnsubmit('${esc(n)}')">↩️ إلغاء التسليم</button>`
+            : `<button class="btn btn-sm btn-xs btn-purple" onclick="examForceSubmit('${esc(n)}')">✅ تسليم فوري</button>`}
+          <button class="btn btn-sm btn-xs btn-green" onclick="examSessionReset('${esc(n)}')">🔑 إعادة جلسة</button>
+        </div>
+        ${kick ? `<div class="ex-line">
+          <span class="lbl">المخالفة</span>
+          <button class="btn btn-sm btn-xs btn-green" onclick="examUnkick('${esc(n)}')">🔓 استئناف الجلسة (إلغاء الطرد)</button>
+        </div>` : ''}
+        <div class="ex-line">
+          <span class="lbl">إدارة</span>
+          ${ban ? `<button class="btn btn-sm btn-xs btn-green" onclick="examUnban('${esc(n)}')">رفع الحظر</button>` : `<button class="btn btn-sm btn-xs btn-red" onclick="examBan('${esc(n)}')">حظر</button>`}
+          <button class="btn btn-sm btn-xs btn-yellow" onclick="examReset('${esc(n)}')">تصفير</button>
+          <button class="btn btn-sm btn-xs btn-ghost" onclick="examDelete('${esc(n)}')">حذف</button>
+        </div>
+      </div>
+      </details>
+    </div>`;
+  }).join('');
+  document.getElementById(listId).innerHTML = html;
+  document.getElementById(emptyId).style.display = nums.length ? 'none' : 'block';
+  return {n:nums.length, c1, c2};
+}
+
+function exPaintHiddenNote(){
+  let files=0, studs=0;
+  Object.keys(classesV).forEach(ck=>{
+    const exams=(classesV[ck]||{}).exams||{};
+    Object.keys(exams).forEach(ec=>{
+      if(exFileVisible(ck,ec)) return;
+      files++; studs+=Object.keys((exams[ec]||{}).students||{}).length;
+    });
+  });
+  const el = document.getElementById('exHiddenNote');
+  el.style.display = files ? '' : 'none';
+  el.innerHTML = files ? `🙈 <b>${files}</b> ملف امتحان (<b>${studs}</b> طالب) مخفيين من اللوحة العامة — بيتداروا من جوه الصف/الملف في تبويب «<span style="cursor:pointer;text-decoration:underline" onclick="showTab('classes')">🏫 إدارة الصفوف والملفات</span>».` : '';
+}
+
+function examOpenReview(n){
+  const e = (examV.exam||{})[n] || {}, rev = e.review || [];
+  const stR = exRosterMap()[n]||{};
+  document.getElementById('exRevName').textContent = (e.name||stR.name||'طالب') + ' — رقم ' + (e.num||stR.num||n) + (stR.className?(' — '+stR.className):'') + (stR.examCode?(' — ملف '+stR.examCode):'');
+  const liveCalc = exScoreOf(e);
+  const curIdx = (e.progress && typeof e.progress.cur==='number') ? (e.progress.cur+1) : null;
+  document.getElementById('exRevMeta').textContent = e.finished===true
+    ? ('سلّم ' + new Date(e.finishedAt||Date.now()).toLocaleString('ar-EG'))
+    : ('لم يسلّم بعد — متابعة مباشرة' + (curIdx ? (' • واقف في سؤال ' + curIdx) : ''));
+  const tot = e.total||rev.length;
+  const sc  = (e.finished===true) ? (e.score||0) : liveCalc.score;
+  const ansd = (e.finished===true) ? (e.answered||0) : liveCalc.answered;
+  document.getElementById('exRevScore').innerHTML = `
+    <div><b style="color:var(--green)">${sc}</b><span>صح</span></div>
+    <div><b style="color:var(--red)">${Math.max(0,ansd-sc)}</b><span>غلط</span></div>
+    <div><b style="color:var(--yellow)">${Math.max(0,tot-ansd)}</b><span>لم يجب</span></div>
+    <div><b>${tot}</b><span>إجمالي</span></div>
+    <div><b style="color:var(--blue)">${tot?Math.round(sc/tot*100):0}%</b><span>النسبة</span></div>`;
+  document.getElementById('exRevBody').innerHTML = rev.length ? rev.map(r=>{
+    const opts = (r.opts||[]).map((o,i)=>{
+      const isC = i===r.correct, isX = r.chosen===i;
+      let cls='', mk='';
+      if(isC){ cls='c'; mk = isX ? 'إجابته ✓ صح' : 'الصح'; }
+      else if(isX){ cls='w'; mk='اختار ✗'; }
+      return `<div class="ex-op ${cls}"><span>${esc(o)}</span>${mk?`<span class="mk">${mk}</span>`:''}</div>`;
+    }).join('');
+    const skip = (r.chosen===null||r.chosen===undefined) ? '<div class="ex-meta" style="margin-top:6px;color:var(--yellow)">لم يجب على هذا السؤال</div>' : '';
+    const isRight = r.chosen===r.correct;
+    const expTitle = (r.chosen===null||r.chosen===undefined) ? 'تفسير الإجابة الصحيحة' : (isRight ? '✅ لماذا هذه الإجابة صحيحة' : '❌ سبب الخطأ والإجابة الصحيحة');
+    const expBody = r.exp ? esc(r.exp) : ('No explanation was written for this question. Correct answer: ' + esc((r.opts||[])[r.correct]||''));
+    const listen = r.listen ? `<div class="ex-meta" style="margin:4px 0 8px;color:var(--blue)">🔊 سؤال استماع — النص المسموع: <span style="direction:ltr;display:inline-block">${esc(r.listen)}</span></div>` : '';
+    const expHtml = `<div class="ex-exp ${r.exp?'':'none'}"><b>${expTitle}</b>${expBody}</div>`;
+    return `<div class="ex-qb"><div class="ex-qh"><span class="ex-qn">${r.n}</span><div class="ex-qt">${esc(r.q)}</div></div>${listen}${opts}${skip}${expHtml}</div>`;
+  }).join('') : '<div class="empty"><p>لا توجد إجابات بعد.</p></div>';
+  document.getElementById('exReviewDialog').classList.add('show');
+}
+
+// ══════════════════════════════════════════════
+// CLASSES & EXAM FILES  (rooms/MAIN/classes/{clsKey}/exams/{code}/students/{uid})
+// ══════════════════════════════════════════════
+let classesV = {};
+let classesListener = null;
+let clSel = {cls:'', exam:''};
+
+function fbKey(s){ return String(s||'').trim().replace(/[.#$\[\]\/\s]+/g,'_').replace(/^_+|_+$/g,''); }
+function normName(s){
+  return String(s||'').trim().toLowerCase()
+    .replace(/[\u064B-\u0652\u0640]/g,'')      // تشكيل وتطويل
+    .replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي')
+    .replace(/\s+/g,' ');
+}
+/* معرف فريد يجمع رقم الطالب + اسمه + صفه + ملف الامتحان: يمنع أي تضارب حتى لو تكرر الرقم */
+function studentUid(clsNum, examCode, num, name){
+  return fbKey(clsNum)+'-'+fbKey(examCode)+'-'+fbKey(num)+'-'+fbKey(normName(name).replace(/ /g,'_'));
+}
+
+function listenClasses(){
+  const db=window._db, ref=window._ref, onValue=window._onValue;
+  if(classesListener) classesListener();
+  classesListener = onValue(ref(db,`rooms/${EXAM_ROOM}/classes`), snap=>{
+    classesV = snap.val() || {};
+    clsPaint();
+    if(examStarted) examPaint();
+  });
+}
+
+/* كل الطلاب المصرح لهم من كل الصفوف/الملفات + القائمة العامة القديمة */
+function exRoster(){
+  const out = [];
+  Object.keys(classesV).forEach(ck=>{
+    const c = classesV[ck]||{};
+    const exams = c.exams||{};
+    Object.keys(exams).forEach(ec=>{
+      const ex = exams[ec]||{};
+      const studs = ex.students||{};
+      Object.keys(studs).forEach(uid=>{
+        const st = studs[uid]||{};
+        out.push({key:uid, num:String(st.num||''), name:st.name||'', clsKey:ck, classNum:c.num||ck, className:c.name||'', examCode:ec, examName:ex.name||'', fileId:ck+'/'+ec, legacy:false, general:exFileVisible(ck,ec)});
+      });
+    });
+  });
+  const legacy = examV.students||{};
+  Object.keys(legacy).forEach(n=>{
+    const st = legacy[n]||{};
+    out.push({key:n, num:String(st.num||n), name:st.name||'', clsKey:'', classNum:'', className:'', examCode:'', examName:'', fileId:'__legacy__', legacy:true, general:true});
+  });
+  return out;
+}
+/* هل طلاب الملف ده يظهروا في لوحة الامتحان العامة؟ (لو الصف أو الملف متعلّم "مخفي" → يظهروا بس جوه الصف/الملف) */
+function exFileVisible(ck, ec){
+  const c = classesV[ck]||{}, ex = (c.exams||{})[ec]||{};
+  return c.hideInGeneral!==true && ex.hideInGeneral!==true;
+}
+/* النطاق: general = اللوحة العامة، cls = الصف المفتوح، file = الملف المفتوح، all = الكل */
+function exScopeRoster(scope){
+  const all = exRoster();
+  if(scope==='cls')  return all.filter(r=>!r.legacy && r.clsKey===clSel.cls);
+  if(scope==='file') return all.filter(r=>!r.legacy && r.clsKey===clSel.cls && r.examCode===clSel.exam);
+  if(scope==='all')  return all;
+  return all.filter(r=>r.general);
+}
+function exRosterMap(){
+  const m = {};
+  exRoster().forEach(r=>m[r.key]=r);
+  return m;
+}
+function exPaintFilter(){
+  const sel = document.getElementById('exFilter');
+  const cur = sel.value;
+  const opts = ['<option value="">كل الطلاب (كل الملفات)</option>'];
+  Object.keys(classesV).sort().forEach(ck=>{
+    const c = classesV[ck]||{}; const exams=c.exams||{};
+    Object.keys(exams).sort().forEach(ec=>{
+      if(!exFileVisible(ck,ec)) return;
+      const ex=exams[ec]||{};
+      const cnt = Object.keys(ex.students||{}).length;
+      opts.push(`<option value="${esc(ck+'/'+ec)}">${esc(c.name||c.num||ck)} (${esc(c.num||ck)}) — ${esc(ex.name||ec)} [${esc(ec)}] · ${cnt} طالب</option>`);
+    });
+  });
+  if(Object.keys(examV.students||{}).length) opts.push('<option value="__legacy__">القائمة العامة (بدون ملف)</option>');
+  const html = opts.join('');
+  if(sel.dataset.html!==html){ sel.innerHTML = html; sel.dataset.html = html; }
+  sel.value = cur;
+  if(sel.value!==cur) sel.value='';
+}
+
+// ── الصفوف
+function clsAdd(){
+  const num = (document.getElementById('clNum').value||'').trim();
+  const name = (document.getElementById('clName').value||'').trim();
+  if(!num){ toast('اكتب رقم الصف','red'); return; }
+  if(!name){ toast('اكتب اسم الصف','red'); return; }
+  const key = fbKey(num);
+  if(!key){ toast('رقم الصف غير صالح','red'); return; }
+  if(classesV[key]){ toast('رقم الصف ده موجود بالفعل','orange'); return; }
+  const db=window._db, ref=window._ref, update=window._update;
+  const gen = document.getElementById('clGen').checked;
+  update(ref(db,`rooms/${EXAM_ROOM}/classes/${key}`), {num, name, createdAt:Date.now(), hideInGeneral: !gen});
+  document.getElementById('clNum').value=''; document.getElementById('clName').value='';
+  document.getElementById('clGen').checked = S.newGeneral;
+  toast('✅ تمت إضافة الصف '+name,'green');
+}
+function clsDelete(ck){
+  const c = classesV[ck]||{};
+  const n = Object.keys(c.exams||{}).length;
+  if(!confirm('حذف الصف '+(c.name||ck)+' وكل ملفاته ('+n+' ملف) وطلابها نهائياً؟')) return;
+  const db=window._db, ref=window._ref, remove=window._remove;
+  remove(ref(db,`rooms/${EXAM_ROOM}/classes/${ck}`));
+  clSel={cls:'',exam:''}; clsPaint();
+  toast('🗑️ تم حذف الصف','red');
+}
+function clsOpen(ck){ clSel={cls:ck, exam:''}; clsPaint(); }
+
+/* تبديل ظهور الصف/الملف المفتوح في لوحة الامتحان العامة */
+function clsToggleGeneral(scope){
+  const ck = clSel.cls, ec = scope==='file' ? clSel.exam : '';
+  if(!ck || (scope==='file' && !ec)) return;
+  const node = ec ? (((classesV[ck]||{}).exams||{})[ec]||{}) : (classesV[ck]||{});
+  const hide = node.hideInGeneral!==true;
+  const db=window._db, ref=window._ref, update=window._update;
+  update(ref(db, `rooms/${EXAM_ROOM}/classes/${ck}` + (ec ? `/exams/${ec}` : '')), {hideInGeneral: hide});
+  toast(hide ? '🙈 مش هيظهروا في لوحة الامتحان العامة — هتلاقيهم هنا بس' : '👁️ هيظهروا في لوحة الامتحان العامة كمان', hide?'orange':'green');
+}
+function clsPaintGeneralSw(pre, node, parentHidden){
+  const shown = node.hideInGeneral!==true;
+  document.getElementById(pre+'GenSw').classList.toggle('on', shown);
+  document.getElementById(pre+'GenDesc').textContent = parentHidden
+    ? 'الصف كله مخفي من اللوحة العامة — فعّل ظهور الصف الأول عشان الملف ده يظهر'
+    : shown ? 'ظاهر — الطلاب بيظهروا في لوحة الامتحان العامة وهنا كمان'
+            : 'مخفي — الطلاب بيظهروا ويتداروا من هنا بس (مش في اللوحة العامة)';
+}
+function clsBack(level){ if(level===0) clSel={cls:'',exam:''}; else clSel.exam=''; clsPaint(); }
+
+// ── ملفات الامتحانات
+function exfAdd(){
+  const ck = clSel.cls; if(!ck||!classesV[ck]){ toast('اختر صفاً أولاً','red'); return; }
+  const code = fbKey((document.getElementById('exfCode').value||'').trim().toUpperCase());
+  const name = (document.getElementById('exfName').value||'').trim();
+  if(!code){ toast('اكتب كود ملف الامتحان','red'); return; }
+  if(!name){ toast('اكتب اسم الامتحان','red'); return; }
+  if(((classesV[ck].exams||{})[code])){ toast('الكود ده موجود في هذا الصف','orange'); return; }
+  const db=window._db, ref=window._ref, update=window._update;
+  const gen = document.getElementById('exfGen').checked;
+  update(ref(db,`rooms/${EXAM_ROOM}/classes/${ck}/exams/${code}`), {code, name, classNum:classesV[ck].num||ck, createdAt:Date.now(), hideInGeneral: !gen});
+  document.getElementById('exfCode').value=''; document.getElementById('exfName').value='';
+  document.getElementById('exfGen').checked = S.newGeneral;
+  toast('✅ تمت إضافة ملف الامتحان '+code,'green');
+}
+function exfOpen(code){ clSel.exam=code; clsPaint(); }
+function exfDelete(){
+  const ck=clSel.cls, ec=clSel.exam; if(!ck||!ec) return;
+  const ex=((classesV[ck]||{}).exams||{})[ec]||{};
+  if(!confirm('حذف ملف الامتحان '+(ex.name||ec)+' وكل طلابه ('+Object.keys(ex.students||{}).length+')؟')) return;
+  const db=window._db, ref=window._ref, remove=window._remove;
+  remove(ref(db,`rooms/${EXAM_ROOM}/classes/${ck}/exams/${ec}`));
+  clSel.exam=''; clsPaint();
+  toast('🗑️ تم حذف ملف الامتحان','red');
+}
+
+// ── الطلاب داخل ملف الامتحان
+function stAddRaw(ck, ec, num, name, batch){
+  const c=classesV[ck]||{};
+  const uid = studentUid(c.num||ck, ec, num, name);
+  batch[uid] = {uid, num:String(num), name, classNum:c.num||ck, className:c.name||'', examCode:ec, addedAt:Date.now()};
+  return uid;
+}
+function stAdd(){
+  const ck=clSel.cls, ec=clSel.exam; if(!ck||!ec){ toast('افتح ملف امتحان أولاً','red'); return; }
+  const num=(document.getElementById('stNum').value||'').trim();
+  const name=(document.getElementById('stName').value||'').trim();
+  if(!num){ toast('اكتب رقم الطالب','red'); return; }
+  if(!name){ toast('اكتب اسم الطالب الكامل','red'); return; }
+  const studs=(((classesV[ck]||{}).exams||{})[ec]||{}).students||{};
+  const sameNum = Object.values(studs).filter(s=>String(s.num)===num);
+  if(sameNum.some(s=>normName(s.name)===normName(name))){ toast('نفس الرقم والاسم مضافان بالفعل','orange'); return; }
+  const batch={};
+  stAddRaw(ck, ec, num, name, batch);
+  const db=window._db, ref=window._ref, update=window._update;
+  update(ref(db,`rooms/${EXAM_ROOM}/classes/${ck}/exams/${ec}/students`), batch);
+  document.getElementById('stNum').value=''; document.getElementById('stName').value='';
+  document.getElementById('stNum').focus();
+  toast('✅ تمت إضافة '+name+(sameNum.length?' (⚠️ الرقم مكرر — سيُطلب الاسم الكامل عند الدخول)':''),'green');
+}
+function stBulkAdd(){
+  const ck=clSel.cls, ec=clSel.exam; if(!ck||!ec){ toast('افتح ملف امتحان أولاً','red'); return; }
+  const raw=(document.getElementById('stBulk').value||'');
+  const lines=raw.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  if(!lines.length){ toast('الصق القائمة أولاً','red'); return; }
+  const batch={}; let ok=0, bad=[];
+  lines.forEach(l=>{
+    const m = l.match(/^[\-\*•\s]*(\d+)\s*(?:[،,;\t:|\-–]+|\s+)\s*(.+)$/);
+    if(!m){ bad.push(l); return; }
+    const num=m[1].trim(), name=m[2].trim().replace(/[،,;|]+$/,'').trim();
+    if(!name){ bad.push(l); return; }
+    stAddRaw(ck, ec, num, name, batch); ok++;
+  });
+  if(!ok){ toast('لم أستطع قراءة أي سطر — الصيغة: رقم، اسم','red'); return; }
+  const db=window._db, ref=window._ref, update=window._update;
+  update(ref(db,`rooms/${EXAM_ROOM}/classes/${ck}/exams/${ec}/students`), batch);
+  document.getElementById('stBulk').value = bad.join('\n');
+  toast('✅ تم استيراد '+ok+' طالب'+(bad.length?(' — '+bad.length+' سطر لم يُقرأ (باقٍ في المربع)'):''), bad.length?'orange':'green');
+}
+function stDelete(uid){
+  const ck=clSel.cls, ec=clSel.exam; if(!ck||!ec) return;
+  const st=((((classesV[ck]||{}).exams||{})[ec]||{}).students||{})[uid]||{};
+  if(!confirm('حذف الطالب '+(st.name||uid)+' من هذا الملف؟')) return;
+  const db=window._db, ref=window._ref, remove=window._remove;
+  remove(ref(db,`rooms/${EXAM_ROOM}/classes/${ck}/exams/${ec}/students/${uid}`));
+  remove(ref(db,`rooms/${EXAM_ROOM}/exam/${uid}`));
+  toast('🗑️ تم حذف الطالب','red');
+}
+
+/* عدد مرات ظهور كل رقم عبر كل الصفوف والملفات (لاكتشاف التكرار) */
+function numOccurrences(){
+  const m={};
+  exRoster().forEach(r=>{ m[r.num]=(m[r.num]||0)+1; });
+  return m;
+}
+
+function clsPaint(){
+  const tab = document.getElementById('classesTab');
+  if(!tab) return;
+  const roster = exRoster().filter(r=>!r.legacy);
+  const occ = numOccurrences();
+  let nExams=0; Object.values(classesV).forEach(c=>nExams+=Object.keys((c||{}).exams||{}).length);
+  document.getElementById('clStClasses').textContent = Object.keys(classesV).length;
+  document.getElementById('clStExams').textContent = nExams;
+  document.getElementById('clStStudents').textContent = roster.length;
+  document.getElementById('clStDup').textContent = Object.keys(occ).filter(n=>occ[n]>1).length;
+
+  if(clSel.cls && !classesV[clSel.cls]) clSel={cls:'',exam:''};
+  if(clSel.exam && !(((classesV[clSel.cls]||{}).exams||{})[clSel.exam])) clSel.exam='';
+
+  const lvl = clSel.exam ? 2 : clSel.cls ? 1 : 0;
+  document.getElementById('clLevelClasses').style.display = lvl===0 ? 'grid' : 'none';
+  document.getElementById('clLevelClass').style.display = lvl===1 ? 'grid' : 'none';
+  document.getElementById('clLevelExam').style.display = lvl===2 ? 'grid' : 'none';
+
+  const c = classesV[clSel.cls]||{};
+  const ex = ((c.exams||{})[clSel.exam])||{};
+  document.getElementById('clCrumb').innerHTML =
+    `<span style="cursor:pointer" onclick="clsBack(0)">🏫 الصفوف</span>` +
+    (lvl>=1 ? `<span class="sep">›</span><b style="cursor:pointer" onclick="clsBack(1)">${esc(c.name||clSel.cls)} (${esc(c.num||clSel.cls)})</b>` : '') +
+    (lvl>=2 ? `<span class="sep">›</span><b>📝 ${esc(ex.name||clSel.exam)} [${esc(clSel.exam)}]</b>` : '');
+
+  if(lvl===0){
+    const keys = Object.keys(classesV).sort((a,b)=>(parseInt((classesV[a]||{}).num,10)||0)-(parseInt((classesV[b]||{}).num,10)||0));
+    document.getElementById('clList').innerHTML = keys.map(ck=>{
+      const c=classesV[ck]||{}; const exams=c.exams||{};
+      let stN=0; Object.values(exams).forEach(e=>stN+=Object.keys((e||{}).students||{}).length);
+      return `<div class="cls-card" onclick="clsOpen('${esc(ck)}')">
+        <button class="cls-del" onclick="event.stopPropagation();clsDelete('${esc(ck)}')">حذف</button>
+        <div class="cls-num">${esc(c.num||ck)}</div>
+        <div class="cls-name">${esc(c.name||'')}</div>
+        <div class="cls-meta">${Object.keys(exams).length} ملف امتحان · ${stN} طالب</div>
+        ${c.hideInGeneral===true?'<span class="gen-off">🙈 مخفي من اللوحة العامة</span>':''}
+      </div>`;
+    }).join('');
+    document.getElementById('clEmpty').style.display = keys.length?'none':'block';
+  }
+  if(lvl===1){
+    document.getElementById('clDetTitle').textContent = '🏫 '+(c.name||'')+' — رقم الصف '+(c.num||clSel.cls);
+    const exams=c.exams||{}; const ks=Object.keys(exams).sort();
+    document.getElementById('exfList').innerHTML = ks.map(ec=>{
+      const e=exams[ec]||{}; const n=Object.keys(e.students||{}).length;
+      return `<div class="cls-card" onclick="exfOpen('${esc(ec)}')">
+        <div class="cls-num" style="color:var(--blue)">${esc(ec)}</div>
+        <div class="cls-name">📝 ${esc(e.name||'')}</div>
+        <div class="cls-meta">${n} طالب مصرح · رقم الصف ${esc(c.num||clSel.cls)}</div>
+        ${!exFileVisible(clSel.cls,ec)?'<span class="gen-off">🙈 مخفي من اللوحة العامة</span>':''}
+      </div>`;
+    }).join('');
+    document.getElementById('exfEmpty').style.display = ks.length?'none':'block';
+    clsPaintGeneralSw('cl', c, false);
+    const cc = exRenderCards('clExList','clExEmpty', exScopeRoster('cls'));
+    document.getElementById('clExMeta').textContent = cc.n+' طالب · '+cc.c1+' متصل · '+cc.c2+' سلّم';
+  }
+  if(lvl===2){
+    document.getElementById('exfDetTitle').textContent = '📝 '+(ex.name||'')+' — كود '+clSel.exam+' — '+(c.name||'')+' ('+(c.num||clSel.cls)+')';
+    const studs = ex.students||{};
+    const uids = Object.keys(studs).sort((a,b)=>(parseInt(studs[a].num,10)||0)-(parseInt(studs[b].num,10)||0) || String(studs[a].name).localeCompare(String(studs[b].name),'ar'));
+    document.getElementById('stCount').textContent = uids.length+' طالب';
+    document.getElementById('stList').innerHTML = uids.map(uid=>{
+      const st=studs[uid]||{};
+      const dup = (occ[String(st.num)]||0)>1;
+      return `<div class="st-row">
+        <span class="n">${esc(st.num)}</span>
+        <span class="nm">${esc(st.name)}</span>
+        ${dup?'<span class="dup" title="الرقم مكرر في أكثر من قائمة — سيُلزم الطالب بكتابة اسمه الكامل">رقم مكرر</span>':''}
+        ${S.showUid?`<span class="uid">${esc(uid)}</span>`:''}
+        <button class="ban-unban" onclick="stDelete('${esc(uid)}')">حذف</button>
+      </div>`;
+    }).join('');
+    document.getElementById('stEmpty').style.display = uids.length?'none':'block';
+    clsPaintGeneralSw('exf', ex, c.hideInGeneral===true);
+    const fc = exRenderCards('exfExList','exfExEmpty', exScopeRoster('file'));
+    document.getElementById('exfExMeta').textContent = fc.n+' طالب · '+fc.c1+' متصل · '+fc.c2+' سلّم';
+  }
+}
+
+// ══════════════════════════════════════════════
+// HARDEST QUESTIONS + CSV EXPORT
+// ══════════════════════════════════════════════
+function examPaintHardest(roster){
+  const exam = examV.exam||{};
+  const agg = {};
+  let sessions=0;
+  roster.forEach(r=>{
+    const e = exam[r.key]; if(!e||!Array.isArray(e.review)) return;
+    sessions++;
+    e.review.forEach(q=>{
+      if(!q || q.chosen===null || q.chosen===undefined) return;
+      const k = String(q.q||'').trim(); if(!k) return;
+      if(!agg[k]) agg[k]={q:k, tries:0, wrong:0};
+      agg[k].tries++;
+      if(q.chosen!==q.correct) agg[k].wrong++;
+    });
+  });
+  const arr = Object.values(agg).filter(a=>a.tries>0 && a.wrong>0)
+    .sort((a,b)=>(b.wrong/b.tries)-(a.wrong/a.tries) || b.wrong-a.wrong).slice(0,Math.max(1,S.hardN|0));
+  document.getElementById('exHardMeta').textContent = sessions ? ('من '+sessions+' طالب') : '';
+  document.getElementById('exHard').innerHTML = arr.length ? arr.map((a,i)=>`
+    <div class="hard-row">
+      <div class="hard-rank">${i+1}</div>
+      <div class="hard-q">${esc(a.q)}</div>
+      <div class="hard-pct">${Math.round(a.wrong/a.tries*100)}%<small>${a.wrong} خطأ من ${a.tries}</small></div>
+    </div>`).join('') : '<div style="text-align:center;color:var(--muted);font-size:.8rem;padding:14px">لا توجد إجابات خاطئة مسجلة بعد.</div>';
+}
+
+function csvCell(v){
+  const s = String(v===null||v===undefined?'':v);
+  return '"'+s.replace(/"/g,'""')+'"';
+}
+function examExportCSV(scope){
+  scope = scope||'general';
+  const exam = examV.exam||{};
+  let filt = scope==='general' ? (document.getElementById('exFilter').value||'') : '';
+  const rosterAll = exScopeRoster(scope);
+  const roster = filt ? rosterAll.filter(r=>r.fileId===filt) : rosterAll;
+  if(scope==='cls') filt = clSel.cls;
+  if(scope==='file') filt = clSel.cls+'/'+clSel.exam;
+  if(!roster.length){ toast('مفيش طلاب للتصدير','orange'); return; }
+  const head = ['الرقم','الاسم','الصف','رقم الصف','ملف الامتحان','الدرجة','الإجمالي','النسبة المئوية','عدد الأسئلة المجابة','المخالفات','سبب الطرد','الحالة','وقت التسليم'];
+  const rows = [head.map(csvCell).join(',')];
+  roster.sort((a,b)=>(parseInt(a.num,10)||0)-(parseInt(b.num,10)||0)).forEach(r=>{
+    const e = exam[r.key]||{};
+    const sc = e.finished===true ? {score:e.score||0, answered:e.answered||0, total:e.total||0} : exScoreOf(e);
+    const total = sc.total||e.total||0;
+    const pct = total ? Math.round((sc.score||0)/total*100) : 0;
+    const vio = e.violations ? Object.keys(e.violations).length : 0;
+    const reason = e.kicked===true ? examKickLabel(e) : (vio ? Object.values(e.violations).map(v=>v&&v.reason).filter(Boolean).slice(-1)[0]||'' : '');
+    const status = e.kicked===true ? 'مطرود بمخالفة' : e.finished===true ? 'سلّم' : (e.startedAt ? 'لم يسلّم' : 'لم يدخل');
+    rows.push([r.num, e.name||r.name, r.className||(r.legacy?'قائمة عامة':''), r.classNum||'', r.examCode||'', sc.score||0, total, pct+'%', sc.answered||0, vio, reason, status, e.finishedAt?new Date(e.finishedAt).toLocaleString('ar-EG'):''].map(csvCell).join(','));
+  });
+  const csv = '\ufeff' + rows.join('\r\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'exam-results-'+(filt?filt.replace('/','-'):'all')+'-'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  toast('📥 تم تنزيل شيت النتائج ('+roster.length+' طالب)','green');
+}
+
+// ══════════════════════════════════════════════
+// SETTINGS + DAY/NIGHT THEME  (محفوظة في المتصفح localStorage)
+// ══════════════════════════════════════════════
+const SET_KEY = 'quizAdmin.settings.v1';
+const SET_DEF = {
+  theme:'dark', font:'Cairo', fontScale:100, radius:14, density:'normal',
+  anim:true, hoverLift:true, stickyTop:true, colors:{},
+  toastMs:3000, toastPos:'bottom',
+  quickGift:10, giftAll:50, listMax:520, keepHide:false, hides:{q:false,qp:false,e:false,ep:false},
+  timeA:5, timeB:10, showHard:true, hardN:3, cardMin:250,
+  showUid:true, newGeneral:true,
+  defaultTab:'quiz', rememberRoom:true, lastRoom:''
+};
+const SET_COLORS = [
+  ['green','الأخضر (نجاح / أساسي)'],['blue','الأزرق (معلومات / تبويبات)'],['red','الأحمر (حذف / حظر)'],
+  ['yellow','الأصفر (XP / تنبيه)'],['purple','البنفسجي (تسليم)'],['orange','البرتقالي (تحذير)']
+];
+const SET_FONTS = {
+  'Cairo':'Cairo:wght@400;700;900','Tajawal':'Tajawal:wght@400;700;900','Almarai':'Almarai:wght@400;700;800',
+  'IBM Plex Sans Arabic':'IBM+Plex+Sans+Arabic:wght@400;700','Noto Kufi Arabic':'Noto+Kufi+Arabic:wght@400;700;900',
+  'Changa':'Changa:wght@400;700;800'
+};
+const SET_SCHEMA = [
+  {sec:'🎨 المظهر', items:[
+    {k:'theme', t:'seg', l:'الوضع', d:'زر 🌙/☀️ فوق بيبدّل بسرعة، والاختيار بيتحفظ', opts:[['dark','🌙 ليلي'],['light','☀️ نهاري'],['auto','🖥️ حسب الجهاز']]},
+    {k:'font', t:'select', l:'الخط', opts:[...Object.keys(SET_FONTS).map(f=>[f,f]),['system','خط الجهاز']]},
+    {k:'fontScale', t:'range', l:'حجم الخط', min:80, max:130, step:5, unit:'%'},
+    {k:'radius', t:'range', l:'استدارة الحواف', min:0, max:24, step:1, unit:'px'},
+    {k:'density', t:'seg', l:'كثافة العرض', opts:[['normal','عادي'],['compact','مضغوط']]},
+    {k:'anim', t:'bool', l:'الحركات والانتقالات'},
+    {k:'hoverLift', t:'bool', l:'رفع اللوحات لما الماوس يعدّي عليها'},
+    {k:'stickyTop', t:'bool', l:'تثبيت الشريط العلوي أثناء التمرير'}
+  ]},
+  {sec:'🌈 الألوان', reset:'colors', items: SET_COLORS.map(([c,l])=>({k:'c_'+c, t:'color', c, l}))},
+  {sec:'🔔 الإشعارات', items:[
+    {k:'toastMs', t:'range', l:'مدة ظهور الإشعار', min:1000, max:8000, step:500, unit:'ث', fmt:v=>(v/1000).toFixed(1)},
+    {k:'toastPos', t:'seg', l:'مكان الإشعار', opts:[['bottom','⬇️ تحت'],['top','⬆️ فوق']]}
+  ]},
+  {sec:'🎮 لوحة الكويز', items:[
+    {k:'quickGift', t:'num', l:'قيمة زر الـ XP السريع جنب كل طالب', min:1, max:1000},
+    {k:'giftAll', t:'num', l:'قيمة زر «🎁 XP للكل»', min:1, max:5000},
+    {k:'listMax', t:'range', l:'أقصى ارتفاع لقائمة الطلاب', min:300, max:1400, step:20, unit:'px'},
+    {k:'keepHide', t:'bool', l:'افتكر أزرار «إخفاء الدرجة / التقدم»', d:'يفتح زي ما سبته آخر مرة (في الكويز والامتحان)'}
+  ]},
+  {sec:'📝 لوحة الامتحان', items:[
+    {k:'timeA', t:'num', l:'زر الوقت الأول (دقائق)', min:1, max:300},
+    {k:'timeB', t:'num', l:'زر الوقت الثاني (دقائق)', min:1, max:300},
+    {k:'showHard', t:'bool', l:'إظهار تحليل أصعب الأسئلة'},
+    {k:'hardN', t:'num', l:'عدد أصعب الأسئلة', min:1, max:20},
+    {k:'cardMin', t:'range', l:'عرض كارت الطالب', min:180, max:420, step:10, unit:'px'}
+  ]},
+  {sec:'🏫 الصفوف والملفات', items:[
+    {k:'newGeneral', t:'bool', l:'الصف/الملف الجديد يظهر في لوحة الامتحان العامة افتراضياً', d:'تقدر تغيّره لكل صف أو ملف من جوّاه'},
+    {k:'showUid', t:'bool', l:'إظهار المعرّف الفريد (UID) جنب كل طالب'}
+  ]},
+  {sec:'🔐 الدخول', items:[
+    {k:'defaultTab', t:'seg', l:'التبويب اللي يفتح بعد الدخول', opts:[['quiz','🎮 الكويز'],['exam','📝 الامتحان'],['classes','🏫 الصفوف']]},
+    {k:'rememberRoom', t:'bool', l:'افتكر آخر كود غرفة'}
+  ]}
+];
+
+function settingsLoad(){
+  let o = {};
+  try{ o = JSON.parse(localStorage.getItem(SET_KEY)||'{}') || {}; }catch(e){ o = {}; }
+  const out = Object.assign({}, SET_DEF, o);
+  out.colors = Object.assign({}, (o && o.colors) || {});
+  out.hides  = Object.assign({}, SET_DEF.hides, (o && o.hides) || {});
+  return out;
+}
+const S = settingsLoad();
+function settingsSave(){ try{ localStorage.setItem(SET_KEY, JSON.stringify(S)); }catch(e){} }
+
+function resolvedTheme(){
+  if(S.theme==='auto') return (window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+  return S.theme==='light' ? 'light' : 'dark';
+}
+function toggleTheme(){
+  S.theme = resolvedTheme()==='dark' ? 'light' : 'dark';
+  settingsSave(); applySettings();
+  if(document.getElementById('setDialog').classList.contains('show')) renderSettings();
+  toast(S.theme==='light' ? '☀️ الوضع النهاري' : '🌙 الوضع الليلي', 'blue');
+}
+if(window.matchMedia){
+  const mq = matchMedia('(prefers-color-scheme: light)');
+  const onSys = ()=>{ if(S.theme==='auto') applySettings(); };
+  if(mq.addEventListener) mq.addEventListener('change', onSys); else if(mq.addListener) mq.addListener(onSys);
+}
+
+function shadeHex(hex, f){
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex||''); if(!m) return hex;
+  const n = parseInt(m[1],16);
+  const ch = v=>Math.max(0,Math.min(255,Math.round(v*(1+f))));
+  return '#'+[n>>16&255, n>>8&255, n&255].map(v=>ch(v).toString(16).padStart(2,'0')).join('');
+}
+function loadFont(name){
+  if(!SET_FONTS[name] || name==='Cairo') return;
+  const id = 'font-'+name.replace(/\s+/g,'-');
+  if(document.getElementById(id)) return;
+  const l = document.createElement('link');
+  l.id = id; l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family='+SET_FONTS[name]+'&display=swap';
+  document.head.appendChild(l);
+}
+
+function applySettings(){
+  const h = document.documentElement, st = h.style;
+  h.setAttribute('data-theme', resolvedTheme());
+  document.querySelectorAll('.theme-btn').forEach(b=>{
+    const dark = resolvedTheme()==='dark';
+    b.textContent = dark ? '☀️ نهاري' : '🌙 ليلي';
+    b.title = dark ? 'التحويل للوضع النهاري' : 'التحويل للوضع الليلي';
+  });
+  loadFont(S.font);
+  st.setProperty('--font', S.font==='system' ? "system-ui,-apple-system,'Segoe UI',Tahoma" : "'"+S.font+"'");
+  st.fontSize = (S.fontScale||100)+'%';
+  st.setProperty('--radius', (S.radius|0)+'px');
+  st.setProperty('--ex-card-min', (S.cardMin||250)+'px');
+  st.setProperty('--list-max', (S.listMax||520)+'px');
+  SET_COLORS.forEach(([c])=>{
+    const v = S.colors[c];
+    if(v){
+      st.setProperty('--'+c, v);
+      st.setProperty('--'+c+'-d', shadeHex(v,-.3));
+      if(c==='yellow') st.setProperty('--yellow-text', resolvedTheme()==='light' ? shadeHex(v,-.3) : v);
+    }else{
+      st.removeProperty('--'+c); st.removeProperty('--'+c+'-d');
+      if(c==='yellow') st.removeProperty('--yellow-text');
+    }
+  });
+  h.classList.toggle('compact', S.density==='compact');
+  h.classList.toggle('no-anim', !S.anim);
+  h.classList.toggle('no-lift', !S.hoverLift);
+  h.classList.toggle('no-sticky', !S.stickyTop);
+  h.classList.toggle('toast-top', S.toastPos==='top');
+  const txt = (cls,v)=>document.querySelectorAll('.'+cls).forEach(e=>e.textContent=v);
+  txt('sGiftAll', S.giftAll); txt('sTimeA', S.timeA); txt('sTimeB', S.timeB); txt('sHardN', S.hardN);
+  const cg = document.getElementById('clGen'), fg = document.getElementById('exfGen');
+  if(cg && !cg.dataset.touched) cg.checked = S.newGeneral;
+  if(fg && !fg.dataset.touched) fg.checked = S.newGeneral;
+  // إعادة رسم اللي بيعتمد على الإعدادات
+  if(currentRoom){ renderPlayers(); if(examStarted) examPaint(); clsPaint(); }
+}
+
+function saveHides(){
+  if(!S.keepHide) return;
+  S.hides = {q:hideScore, qp:hideProgress, e:examHideScore, ep:examHideProgress};
+  settingsSave();
+}
+
+function setSetting(k, v){
+  if(k.startsWith('c_')) S.colors[k.slice(2)] = v;
+  else S[k] = v;
+  if(k==='keepHide'){ if(v) saveHides(); else S.hides = Object.assign({}, SET_DEF.hides); }
+  if(k==='rememberRoom' && !v) S.lastRoom = '';
+  settingsSave(); applySettings();
+}
+
+function setCurVal(it){
+  if(it.t==='color'){
+    if(S.colors[it.c]) return S.colors[it.c];
+    return var_('--'+it.c) || '#000000';
+  }
+  return S[it.k];
+}
+function renderSettings(){
+  const body = document.getElementById('setBody');
+  body.innerHTML = SET_SCHEMA.map((sec,si)=>{
+    const rows = sec.items.map((it,ii)=>{
+      const v = setCurVal(it), id = 'set_'+si+'_'+ii;
+      let ctl = '';
+      if(it.t==='seg') ctl = `<div class="seg">${it.opts.map(([ov,ol])=>`<button type="button" class="${v===ov?'on':''}" onclick="setSetting('${it.k}','${ov}');renderSettings()">${ol}</button>`).join('')}</div>`;
+      else if(it.t==='select') ctl = `<select id="${id}" onchange="setSetting('${it.k}',this.value)">${it.opts.map(([ov,ol])=>`<option value="${esc(ov)}"${v===ov?' selected':''}>${esc(ol)}</option>`).join('')}</select>`;
+      else if(it.t==='bool') ctl = `<div class="ex-sw${v?' on':''}" onclick="setSetting('${it.k}',${!v});renderSettings()"></div>`;
+      else if(it.t==='range'){
+        const f = it.fmt || (x=>x);
+        ctl = `<div class="set-ctl"><input type="range" min="${it.min}" max="${it.max}" step="${it.step}" value="${v}" oninput="this.nextElementSibling.textContent=(${it.fmt?it.fmt.toString():'x=>x'})(+this.value)+'${it.unit||''}';setSetting('${it.k}',+this.value)"/><span class="set-val">${f(v)}${it.unit||''}</span></div>`;
+      }
+      else if(it.t==='num') ctl = `<input type="number" min="${it.min}" max="${it.max}" value="${v}" onchange="const n=Math.min(${it.max},Math.max(${it.min},parseInt(this.value,10)||${SET_DEF[it.k]}));this.value=n;setSetting('${it.k}',n)"/>`;
+      else if(it.t==='color') ctl = `<input type="color" value="${esc(v)}" oninput="setSetting('${it.k}',this.value)"/>`;
+      return `<div class="set-row"><div><div class="sl">${it.l}</div>${it.d?`<div class="sd">${it.d}</div>`:''}</div>${ctl}</div>`;
+    }).join('');
+    const rst = sec.reset==='colors' ? `<button class="btn btn-ghost btn-sm" onclick="S.colors={};settingsSave();applySettings();renderSettings()">♻️ ألوان الوضع الأصلية</button>` : '';
+    return `<div class="set-sec"><h4><span>${sec.sec}</span>${rst}</h4>${rows}</div>`;
+  }).join('');
+}
+function openSettings(){ renderSettings(); document.getElementById('setDialog').classList.add('show'); }
+
+function settingsReset(){
+  if(!confirm('ترجيع كل الإعدادات للوضع الافتراضي؟')) return;
+  const keepRoom = S.lastRoom;
+  Object.keys(S).forEach(k=>delete S[k]);
+  Object.assign(S, JSON.parse(JSON.stringify(SET_DEF)), {lastRoom:keepRoom});
+  settingsSave(); applySettings(); renderSettings();
+  toast('♻️ رجعت الإعدادات الافتراضية','blue');
+}
+function settingsExport(){
+  const blob = new Blob([JSON.stringify(S, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = 'quiz-admin-settings.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  toast('📤 تم تصدير الإعدادات','green');
+}
+function settingsImport(inp){
+  const f = inp.files && inp.files[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = ()=>{
+    try{
+      const o = JSON.parse(rd.result);
+      if(!o || typeof o!=='object' || Array.isArray(o)) throw 0;
+      Object.keys(SET_DEF).forEach(k=>{ if(k in o && typeof o[k]===typeof SET_DEF[k]) S[k] = o[k]; });
+      settingsSave(); applySettings(); renderSettings();
+      toast('📥 تم استيراد الإعدادات','green');
+    }catch(e){ toast('الملف ده مش ملف إعدادات صالح','red'); }
+    inp.value = '';
+  };
+  rd.readAsText(f);
+}
+
+// Esc يقفل أي نافذة مفتوحة
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape') document.querySelectorAll('.overlay.show').forEach(o=>o.classList.remove('show'));
+});
+['clGen','exfGen'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el) el.addEventListener('change', ()=>{ el.dataset.touched = '1'; });
+});
+
+// تشغيل أول ما الملف يفتح
+(function settingsInit(){
+  if(S.keepHide){
+    hideScore = !!S.hides.q; hideProgress = !!S.hides.qp;
+    examHideScore = !!S.hides.e; examHideProgress = !!S.hides.ep;
+  }
+  if(S.rememberRoom && S.lastRoom) document.getElementById('adminRoom').value = S.lastRoom;
+  applySettings();
+})();
+</script>
+
+<!-- 
+  ══════════════════════════════════════════════════════════════════
+  ملاحظة للكويز: لازم تضيف الكود ده في الكويز نفسه عشان القفل يشتغل:
+  
+  في mpListenRoom() أو بعد mpWaitReady():
+  
+  _fbOnValue(_fbRef(_fbDb, `rooms/${mpRoomCode}/locked`), snap => {
+    if(snap.val() === true) _goBase('resultScreen'); // أو شاشة انتهى
+  });
+  ══════════════════════════════════════════════════════════════════
+-->
+</body>
+</html>
