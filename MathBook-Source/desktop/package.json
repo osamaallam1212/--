@@ -1,0 +1,67 @@
+{
+  "name": "mathbook-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Math Book to Word — Windows",
+  "author": "MathBook",
+  "main": "main.cjs",
+  "scripts": {
+    "build:win": "pnpm --dir .. run web:export && electron-builder --win nsis --x64",
+    "pack:win": "pnpm --dir .. run web:export && electron-builder --win dir --x64",
+    "start": "pnpm --dir .. run web:export && electron ."
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "44.8.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.mathbook.word",
+    "productName": "MathBook Word",
+    "directories": {
+      "output": "../artifacts/windows"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../dist",
+        "to": "renderer",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "../assets/images/icon.ico",
+      "artifactName": "MathBook-Setup-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "differentialPackage": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Math Book Word",
+      "runAfterFinish": true
+    }
+  },
+  "pnpm": {
+    "supportedArchitectures": {
+      "os": [
+        "win32",
+        "current"
+      ],
+      "cpu": [
+        "x64",
+        "current"
+      ]
+    }
+  }
+}

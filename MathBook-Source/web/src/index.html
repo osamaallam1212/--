@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#f7f8fc">
+<title>Math Book to Word</title>
+<style>/*@@FONTS@@*/</style>
+<style>/*@@CSS@@*/</style>
+</head>
+<body>
+<div class="wrap">
+<div class="header">
+  <svg viewBox="0 0 80 80" fill="none" stroke="#141b2d" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"><rect x="14" y="8" width="52" height="64" rx="8"/><path d="M28 28h24M28 42h24M28 56h12"/></svg>
+  <h1>Math_Book_to_Word</h1>
+  <h2>كتاب الرياضيات إلى Word</h2>
+  <p>ارفع الكتاب ← حدّد الصفحات ← اطلب من الذكاء الاصطناعي الخطة ← راجع الأسئلة ورتّبها ← أنشئ ملف Word. كل شيء يتحفظ تلقائياً داخل التطبيق.</p>
+</div>
+
+<div class="steps">
+  <button class="step active" data-s="1">1 · الكتاب والتعليمات</button>
+  <button class="step" data-s="2">2 · لصق رد الذكاء الاصطناعي</button>
+  <button class="step" data-s="3">3 · المراجعة والتصدير</button>
+  <button class="step" id="clr">🗑 جلسة جديدة</button>
+</div>
+
+<!-- STAGE 1 -->
+<section class="card" id="s1">
+  <h2><span class="n">1</span> ارفع كتاب الـ PDF وحدد الصفحات</h2>
+  <div class="upload-zone" id="uz">
+    
+    <span class="uz-icon">📕</span>
+    <div class="uz-title" id="uzTitle">اسحب ملف الكتاب هنا أو اضغط للاختيار</div>
+    <div class="uz-sub" id="uzSub">PDF فقط — يعمل محلياً بالكامل</div>
+  </div>
+  <div class="row">
+    <div class="field"><label>من صفحة (PDF)</label><input type="number" id="pFrom" value="1" min="1"></div>
+    <div class="field"><label>إلى صفحة (PDF)</label><input type="number" id="pTo" value="1" min="1"></div>
+    <div class="field"><label>إزاحة رقم صفحة الكتاب (رقم الكتاب − رقم الـ PDF)</label><input type="number" id="pOff" value="0"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>عنوان الوحدة</label><input type="text" id="mTitle" value="Integrated I Module 5"></div>
+    <div class="field"><label>العنوان الفرعي</label><input type="text" id="mSub" value="Creating Linear Equations"></div>
+    <div class="field"><label>الصف</label><input type="text" id="mGrade" value="Grade 9 Advanced"></div>
+  </div>
+  <div class="row">
+    <div class="field"><label>طريقة عرض الأسئلة في Word</label>
+      <select id="qMode"><option value="img">🖼️ صور جاهزة من الكتاب (قص)</option><option value="text">📝 نص السؤال بالضبط داخل مربع نص (الذكاء الاصطناعي يكتبه)</option></select></div>
+    <div class="field"><label>جودة قص الصور DPI (حتى 1000)</label><input type="number" id="dpi" value="600" min="150" max="1000" step="50"></div>
+  </div>
+  <div class="row"><div class="field" style="min-width:100%"><label>📌 تعليمات خاصة للذكاء الاصطناعي (الترتيب المطلوب، الهيكل، أرقام الأسئلة، أي شيء تريده — لها أولوية قصوى)</label>
+    <textarea id="extra" placeholder="مثال: الجزء الأول الأمثلة بهذا الترتيب: مثال 2 ص703، مثال 6 ص716، مثال 1 ص733 ... ثم الجزء الثاني تمارين 22–29 ص728 ... لا ترتّب شيئًا من عندك." style="min-height:110px;direction:rtl;font-family:inherit;font-size:.9rem"></textarea></div></div>
+  <div class="row">
+    <button class="btn btn-green" id="genMd" disabled>⚙️ استخراج النصوص وتوليد ملف التعليمات (.md)</button>
+    <button class="btn btn-ghost" id="copyMd" disabled>📋 نسخ</button>
+    <button class="btn btn-ghost" id="dlMd" disabled>⬇️ تنزيل .md</button>
+  </div>
+  <div class="progress" id="prog1"><div></div></div>
+  <div class="thumbs" id="thumbs"></div>
+  <div class="log" id="log1"></div>
+</section>
+
+<!-- STAGE 2 -->
+<section class="card" id="s2" style="display:none">
+  <h2><span class="n">2</span> الصق رد الذكاء الاصطناعي (JSON داخل Markdown)</h2>
+  <textarea id="aiIn" placeholder='```json
+{ "module": {...}, "items": [ ... ] }
+```'></textarea>
+  <div class="row">
+    <button class="btn btn-blue" id="parseBtn">✂️ قراءة الرد وقص الأسئلة</button>
+    <button class="btn btn-ghost" id="sampleBtn">مثال للصيغة</button>
+  </div>
+  <div class="log" id="log2"></div>
+</section>
+
+<!-- STAGE 3 -->
+<section class="card" id="s3" style="display:none">
+  <h2><span class="n">3</span> راجع القصاصات (اضغط على أي سؤال لتعديل حدوده)</h2>
+  <div id="review"></div>
+  <div class="row">
+    <div class="field"><label>طريقة عرض الأسئلة في Word</label>
+      <select id="qMode3"><option value="img">🖼️ صور جاهزة من الكتاب (قص)</option><option value="text">📝 نص السؤال داخل مربع نص</option></select></div>
+  </div>
+<div class="opts">
+  <h3>🧩 ترتيب العناصر والمواضيع</h3>
+  <div class="row">
+    <button class="btn btn-ghost btn-sm" id="qFirst">الأسئلة بعد العناوين ثم الأمثلة</button>
+    <button class="btn btn-ghost btn-sm" id="exFirst">الأمثلة المحلولة أولاً</button>
+    <button class="btn btn-ghost btn-sm" id="exLast">الأمثلة المحلولة في الآخر</button>
+    <button class="btn btn-ghost btn-sm" id="byPage">ترتيب الكل بصفحات الكتاب</button>
+    <button class="btn btn-ghost btn-sm" id="allByNum">ترتيب كل الأسئلة بالرقم</button>
+    <button class="btn btn-ghost btn-sm" id="byNumDesc">عكس ترتيب الأرقام داخل كل مجموعة</button>
+    <button class="btn btn-ghost btn-sm" id="revAll">عكس الترتيب كله</button>
+    <button class="btn btn-ghost btn-sm" id="dedupe">حذف الأسئلة المكررة</button>
+  </div>
+  <h3 style="margin-top:14px">➕ إضافة عنصر / موضوع جديد</h3>
+  <div class="row">
+    <div class="field"><label>النوع</label><select id="addType"></select></div>
+    <div class="field" style="max-width:150px"><label>الموضع (فارغ = آخر الملف)</label><input type="number" id="addPos" min="1"></div>
+    <button class="btn btn-green btn-sm" id="addBtn">➕ إضافة</button>
+  </div>
+  <h3 style="margin-top:14px">📋 تطبيق إعداد على كل الأسئلة</h3>
+  <div class="row">
+    <div class="field"><select id="bkCols"><option value="">الأعمدة: بدون تغيير</option><option value="1">عمود واحد</option><option value="2">عمودان</option><option value="3">3 أعمدة</option></select></div>
+    <div class="field"><select id="bkAns"></select></div>
+    <div class="field"><select id="bkLines"><option value="">الأسطر: بدون تغيير</option><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option></select></div>
+    <div class="field"><select id="bkBadge"><option value="">شكل الرقم: بدون تغيير</option><option value="box">مربع</option><option value="solid">ملوّن</option><option value="outline">إطار</option><option value="plain">عادي</option><option value="none">بدون</option></select></div>
+    <button class="btn btn-blue btn-sm" id="bkBtn">تطبيق</button>
+  </div>
+</div>
+<div class="opts">
+  <h3>⚙️ خيارات الملف — كل خيار تقدر تتركه «حسب الذكاء الاصطناعي» أو تحدده بنفسك</h3>
+  <div class="row"><div class="field"><label>اتجاه المستند</label><select id="dirOpt"><option value="book">تلقائي حسب لغة الكتاب</option><option value="rtl">عربي (من اليمين لليسار)</option><option value="ltr">إنجليزي (من اليسار لليمين)</option><option value="para">تلقائي لكل فقرة</option></select></div><div class="field"><label>لغة عناوين الملف (المسألة/الحل/صفحة…)</label><select id="labelLang"><option value="ai">تلقائي حسب الاتجاه</option><option value="ar">عربي</option><option value="en">English</option></select></div><div class="field"><label>مكان الأمثلة المحلولة</label><select id="solvedPl"><option value="ai">كل مثال في مكانه بترتيب الذكاء الاصطناعي</option><option value="end-plan">في آخر الملف بنفس ترتيب الذكاء الاصطناعي</option><option value="end-book">في آخر الملف حسب صفحات الكتاب</option><option value="start-plan">في أول الملف بترتيب الذكاء الاصطناعي</option></select></div></div>
+  <div class="row"><div class="field"><label>شكل خطوات الحل (النقاط)</label><select id="stepStyle"><option value="ai">🤖 حسب الذكاء الاصطناعي</option><option value="rows">جدول مرقّم</option><option value="plain">نقاط مرقمة بدون جدول</option><option value="boxes">مربعات منفصلة</option><option value="flow">مربعات بينها أسهم</option><option value="dots">نقاط ●</option><option value="compact">مضغوط بدون أرقام</option><option value="cols2">عمودان</option></select></div><div class="field"><label>ترقيم الخطوات</label><select id="numStyle"><option value="ai">🤖 حسب الذكاء الاصطناعي</option><option value="numbers">1 2 3</option><option value="letters">a b c</option><option value="ar">أ ب ج</option><option value="none">بدون ترقيم</option></select></div><div class="field"><label>فصل الفروع (a. b. c.) في الحل</label><select id="partSplit"><option value="ai">🤖 حسب الذكاء الاصطناعي</option><option value="yes">نعم</option><option value="no">لا</option></select></div><div class="field"><label>تمييز الخطوة الأخيرة (الناتج)</label><select id="hlLast"><option value="ai">🤖 حسب الذكاء الاصطناعي</option><option value="yes">نعم</option><option value="no">لا</option></select></div></div>
+  <div class="row"><div class="field"><label>لون الأمثلة المحلولة</label><select id="palette"><option value="ai">🤖 حسب الذكاء الاصطناعي</option><option value="teal">فيروزي</option><option value="blue">أزرق</option><option value="green">أخضر</option><option value="orange">برتقالي</option><option value="purple">بنفسجي</option><option value="navy">كحلي</option><option value="red">أحمر</option><option value="grey">رمادي</option></select></div><div class="field"><label>محاذاة المعادلات (السطور بدون عربي)</label><select id="eqAlign"><option value="ai">🤖 حسب الذكاء الاصطناعي</option><option value="start">مع بداية السطر</option><option value="center">توسيط</option></select></div><div class="field"><label>مكان الصورة بجانب السؤال</label><select id="figSide"><option value="ai">🤖 حسب الذكاء الاصطناعي</option><option value="end">بعد النص</option><option value="start">قبل النص</option></select></div><div class="field"><label>شكل رقم السؤال</label><select id="badgeStyle"><option value="ai">🤖 حسب الذكاء الاصطناعي</option><option value="box">مربع</option><option value="solid">ملوّن</option><option value="outline">إطار</option><option value="plain">عادي</option><option value="none">بدون</option></select></div></div>
+  <div class="row"><div class="field"><label>الخط العربي</label><select id="arFont"><option value="Arial">Arial</option><option value="Traditional Arabic">Traditional Arabic</option><option value="Simplified Arabic">Simplified Arabic</option><option value="Tahoma">Tahoma</option><option value="Sakkal Majalla">Sakkal Majalla</option><option value="Segoe UI">Segoe UI</option></select></div><div class="field"><label>حجم الخط</label><select id="fontSz"><option value="20">10</option><option value="22" selected>11</option><option value="24">12</option><option value="26">13</option><option value="28">14</option></select></div><div class="field"><label>شكل أسطر الإجابة</label><select id="lineStyle"><option value="ai">🤖 حسب الذكاء الاصطناعي</option><option value="single">خط متصل</option><option value="dotted">منقّط</option><option value="dashed">متقطع</option></select></div><div class="field"><label>تباعد أسطر الإجابة</label><select id="lineGap"><option value="ai">🤖 حسب الذكاء الاصطناعي</option><option value="narrow">ضيق</option><option value="normal">عادي</option><option value="wide">واسع</option></select></div><div class="field"><label>إطار الصفحة</label><select id="pgBorder"><option value="ai">🤖 حسب الذكاء الاصطناعي</option><option value="yes">نعم</option><option value="no">لا</option></select></div><div class="field"><label>صفحة الغلاف</label><select id="cover"><option value="ai">🤖 حسب الذكاء الاصطناعي</option><option value="yes">نعم</option><option value="no">لا</option></select></div><div class="field"><label>علامة السالب في الأعداد (حل مشكلة انعكاس −4)</label><select id="minusFix"><option value="yes">شرطة عادية (-) آمنة</option><option value="no">علامة − الأصلية</option></select></div></div>
+</div>
+  <div class="row">
+    <button class="btn btn-ghost" id="sortQ">🔢 رتّب الأسئلة بالرقم (داخل كل مجموعة)</button>
+    <button class="btn btn-ghost" id="sortS">📚 رتّب الأمثلة المحلولة بالصفحة</button>
+  </div>
+  <div class="hint">للترتيب اليدوي: استخدم أزرار ▲ ▼ ⤒ ⤓ تحت كل سؤال أو مثال أو عنوان. الملف يُطبع بنفس الترتيب الظاهر هنا.</div>
+  <div class="row">
+    <button class="btn btn-green" id="buildBtn">📄 إنشاء ملف Word (.docx)</button>
+  </div>
+  <div class="progress" id="prog3"><div></div></div>
+  <div class="log" id="log3"></div>
+  <div class="dl" id="dl"></div>
+</section>
+
+<div class="modal" id="modal">
+  <div class="mbox">
+    <div class="row" style="margin-top:0;margin-bottom:10px">
+      <div class="field"><label>رقم السؤال</label><input type="text" id="eNum"></div>
+      <div class="field"><label>صفحة PDF</label><input type="number" id="ePdf"></div>
+      <div class="field"><label>مساحة الإجابة</label>
+        <select id="eLayout"><option>lines</option><option>graph</option><option>table-graph</option><option>graph-lines</option><option>numberline</option><option>numberline-lines</option><option>table-fill</option><option>none</option></select></div><div class="field"><label>أعمدة الصف</label><select id="eCols"><option>1</option><option>2</option><option>3</option></select></div>
+      <div class="field"><label>أسطر الحل</label><input type="number" id="eLines" min="0" max="20"></div>
+    </div>
+    <div class="cwrap" id="cwrap"><canvas id="eCanvas"></canvas><div class="sel" id="sel"></div></div>
+    <div class="hint">اسحب بالفأرة على الصفحة لرسم حدود القص الجديدة.</div>
+    <div class="row">
+      <button class="btn btn-green" id="eSave">✔ حفظ</button>
+      <button class="btn btn-blue" id="eGal">🖼️ إضافة صورة من المعرض</button>
+      <button class="btn btn-ghost" id="eDel">🗑 حذف السؤال</button>
+      <button class="btn btn-ghost" id="eClose">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="foot">Math Book → Word • يعمل بدون إنترنت • كل بياناتك محفوظة داخل التطبيق</div>
+</div>
+<script id="pdfWorkerSrc" type="text/plain">/*@@WORKER@@*/</script>
+<script>window.K=window.K||{};K.APP_VERSION="/*@@VERSION@@*/";</script>
+<script>/*@@LIBS@@*/</script>
+<script>/*@@JS@@*/</script>
+</body>
+</html>
